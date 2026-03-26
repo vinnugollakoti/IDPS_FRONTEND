@@ -1,5 +1,6 @@
-import { useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
+import type { ChangeEvent } from 'react';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import type { IconType } from 'react-icons';
@@ -7,6 +8,12 @@ import {
   LuBookCopy,
   LuBookOpen,
   LuCircleDollarSign,
+  LuDownload,
+  LuCircleAlert,
+  LuCircleCheck,
+  LuCalendarRange,
+  LuChevronRight,
+  LuClock3,
   LuGauge,
   LuGraduationCap,
   LuLogOut,
@@ -14,8 +21,10 @@ import {
   LuSearch,
   LuSettings,
   LuSlidersHorizontal,
+  LuShieldCheck,
   LuUserRoundCheck,
   LuUsers,
+  LuUpload,
 } from 'react-icons/lu';
 import logo from './assets/idps_logo.png';
 import './App.css';
@@ -28,52 +37,213 @@ type User = {
   email: string;
   role: Role;
   gender: 'MALE' | 'FEMALE';
+  parent?: {
+    id: number;
+    name?: string | null;
+    relation?: string | null;
+    type?: 'MOTHER' | 'FATHER' | 'GUARDIAN' | null;
+    phone1?: string | null;
+    phone2?: string | null;
+    adharnumber?: string | null;
+    qualification?: string | null;
+    village?: string | null;
+    user?: {
+      email?: string;
+      gender?: 'MALE' | 'FEMALE';
+    } | null;
+  } | null;
+  teacher?: {
+    id: number;
+    name?: string | null;
+  } | null;
 };
 
 type ClassStudent = {
   id: number;
   name: string;
+  admissionno?: string | null;
+  classId?: number | null;
+  gender?: 'MALE' | 'FEMALE' | null;
+  dob?: string | null;
+  adharnumber?: string | null;
+  address?: string | null;
+  pincode?: string | null;
+  bloodgroup?: string | null;
+  mothertongue?: string | null;
+  socialcategory?: string | null;
+  admissiondate?: string | null;
+  height?: number | null;
+  weight?: number | null;
+  parents?: Array<{
+    parent?: {
+      id: number;
+      name: string;
+      relation?: string | null;
+      type?: 'MOTHER' | 'FATHER' | 'GUARDIAN' | null;
+      phone1?: string | null;
+      phone2?: string | null;
+      village?: string | null;
+      qualification?: string | null;
+      adharnumber?: string | null;
+      user?: {
+        email?: string;
+        gender?: 'MALE' | 'FEMALE';
+      } | null;
+    } | null;
+  }>;
+};
+
+type StudentDirectoryRow = ClassStudent & {
+  className: string;
+  section: string;
+  teacherName: string | null;
 };
 
 type StudentMasterDetail = {
   id: number;
   name: string;
   photo?: string | null;
+  admissionno?: string | null;
   gender?: 'MALE' | 'FEMALE';
   dob?: string | null;
+  adharnumber?: string | null;
+  pincode?: string | null;
+  mothertongue?: string | null;
+  socialcategory?: string | null;
+  bloodgroup?: string | null;
+  admissiondate?: string | null;
+  height?: number | null;
+  weight?: number | null;
+  address?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
   classId?: number | null;
   busId?: number | null;
   class?: {
     id: number;
-    name: number;
+    name: string;
     section: string;
+    teacher?: {
+      id: number;
+      name: string;
+      phone?: string | null;
+      user?: {
+        email?: string;
+      } | null;
+    } | null;
   } | null;
   bus?: {
     id: number;
     busNumber?: string | number | null;
     routeName?: string | null;
   } | null;
+  feeDetails?: Array<{
+    id: number;
+    studentId?: number;
+    type: 'TUITION' | 'BUS' | 'EXAM' | 'OTHER';
+    total: number | string;
+    academicYear: string;
+    totalPaid?: number;
+    remaining?: number;
+    payments: FeePaymentOption[];
+    createdAt?: string | null;
+    updatedAt?: string | null;
+  }>;
+  marks?: Array<{
+    id: number;
+    examId: number;
+    marks: number;
+    exam?: {
+      id: number;
+      name: string;
+      totalMarks?: number;
+      subjectId?: number;
+      classId?: number;
+      examDate?: string;
+      subject?: {
+        id: number;
+        name: string;
+      } | null;
+      class?: {
+        id: number;
+        name: string;
+        section: string;
+        teacher?: {
+          id: number;
+          name: string;
+          phone?: string | null;
+          user?: {
+            email?: string;
+          } | null;
+        } | null;
+      } | null;
+    } | null;
+    createdAt?: string | null;
+    updatedAt?: string | null;
+  }>;
   parents?: Array<{
     parent?: {
       id: number;
       name: string;
       relation?: string | null;
+      type?: 'MOTHER' | 'FATHER' | 'GUARDIAN' | null;
       phone1?: string | null;
       phone2?: string | null;
       village?: string | null;
+      qualification?: string | null;
+      adharnumber?: string | null;
+      createdAt?: string | null;
+      updatedAt?: string | null;
+      user?: {
+        email?: string;
+        gender?: 'MALE' | 'FEMALE';
+      } | null;
     } | null;
   }>;
 };
 
+type StudentParentProfile = Exclude<NonNullable<StudentMasterDetail['parents']>[number]['parent'], null | undefined>;
+
+type ParentStudentRow = {
+  id: number;
+  name: string;
+  admissionno?: string | null;
+  gender?: 'MALE' | 'FEMALE' | null;
+  dob?: string | null;
+  classId: number;
+  className: string;
+  section: string;
+  teacherName: string | null;
+  teacherEmail: string | null;
+  totalFees: number;
+  paidFees: number;
+  remainingFees: number;
+  feeCount: number;
+  averageMarks: number;
+  bestMarks: number;
+  latestExamName: string | null;
+  latestExamPercent: number;
+  attendanceTotal: number;
+  attendancePresent: number;
+  attendanceAbsent: number;
+  attendancePercent: number | null;
+  guardianCount: number;
+  primaryGuardianName: string | null;
+};
+
 type ClassSection = {
   id: number;
-  name: number;
+  name: string;
   section: string;
   students: ClassStudent[];
   teacherId?: number | null;
   teacher?: {
     id: number;
     name: string;
+    phone?: string | null;
+    user?: {
+      email?: string;
+    } | null;
   } | null;
   attendanceSessions?: Array<{
     id: number;
@@ -90,8 +260,10 @@ type ParentOption = {
   id: number;
   name: string;
   relation?: string | null;
+  type?: 'MOTHER' | 'FATHER' | 'GUARDIAN' | null;
   phone1?: string | null;
   phone2?: string | null;
+  adharnumber?: string | null;
   village?: string | null;
   user?: {
     email?: string;
@@ -123,7 +295,7 @@ type SubjectOption = {
     classId?: number;
     class?: {
       id: number;
-      name: number;
+      name: string;
       section: string;
     } | null;
   }>;
@@ -138,7 +310,7 @@ type ExamOption = {
   subjectId: number;
   class?: {
     id: number;
-    name: number;
+    name: string;
     section: string;
   } | null;
   subject?: {
@@ -195,7 +367,7 @@ type FeeOption = {
     classId?: number;
     class?: {
       id: number;
-      name: number;
+      name: string;
       section: string;
     } | null;
     parents?: Array<{
@@ -277,6 +449,484 @@ function formatInr(value: number): string {
   return `INR ${INR_FORMATTER.format(Math.max(Math.round(value), 0))}`;
 }
 
+function formatDisplayDate(value?: string | null): string {
+  if (!value) {
+    return 'N/A';
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return 'N/A';
+  }
+
+  return new Intl.DateTimeFormat('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(date);
+}
+
+function formatAgeFromDob(value?: string | null): string {
+  if (!value) {
+    return 'N/A';
+  }
+  const dob = new Date(value);
+  if (Number.isNaN(dob.getTime())) {
+    return 'N/A';
+  }
+  const now = new Date();
+  let age = now.getFullYear() - dob.getFullYear();
+  const monthDelta = now.getMonth() - dob.getMonth();
+  if (monthDelta < 0 || (monthDelta === 0 && now.getDate() < dob.getDate())) {
+    age -= 1;
+  }
+  return age >= 0 ? `${age} yrs` : 'N/A';
+}
+
+type StudentImportParentPreview = {
+  name: string;
+  phone: string;
+  aadhar: string;
+  qualification: string;
+};
+
+type StudentImportPreviewRow = {
+  rowNumber: number;
+  admissionno: string;
+  name: string;
+  gender: string;
+  dob: string;
+  adharnumber: string;
+  pincode: string;
+  mothertongue: string;
+  socialcategory: string;
+  bloodgroup: string;
+  admissiondate: string;
+  height: string;
+  weight: string;
+  address: string;
+  parents: {
+    father: StudentImportParentPreview;
+    mother: StudentImportParentPreview;
+  };
+  errors: string[];
+  valid: boolean;
+};
+
+type StudentImportRowPayload = {
+  rowNumber: number;
+  admissionno: string;
+  name: string;
+  gender: 'MALE' | 'FEMALE' | '';
+  dob: string | null;
+  adharnumber: string | null;
+  pincode: string | null;
+  mothertongue: 'TELUGU' | 'URGU' | 'ENGLISH' | null;
+  socialcategory: 'OC' | 'BC_A' | 'BC_B' | 'BC_C' | 'BC_D' | 'BC_E' | 'MBC_DNC' | 'SC' | 'ST' | null;
+  bloodgroup: 'A_POS' | 'A_NEG' | 'B_POS' | 'B_NEG' | 'AB_POS' | 'AB_NEG' | 'O_POS' | 'O_NEG' | null;
+  admissiondate: string | null;
+  height: number | null;
+  weight: number | null;
+  address: string | null;
+  fatherName?: string | null;
+  motherName?: string | null;
+  mobileNumber?: string | null;
+  fatherAadhar?: string | null;
+  motherAadhar?: string | null;
+  qualification?: string | null;
+  parents: {
+    father: {
+      name: string;
+      phone: string | null;
+      aadhar: string | null;
+      qualification: string | null;
+      relation: 'Father';
+    } | null;
+    mother: {
+      name: string;
+      phone: string | null;
+      aadhar: string | null;
+      qualification: string | null;
+      relation: 'Mother';
+    } | null;
+  };
+  errors: string[];
+};
+
+const normalizeImportText = (value?: string | number | null) => {
+  if (value === null || value === undefined) return '';
+  return String(value).replace(/\s+/g, ' ').trim();
+};
+
+const normalizeImportDigits = (value?: string | number | null) => normalizeImportText(value).replace(/\D+/g, '');
+
+const normalizeImportKey = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+const parseImportFlexibleDate = (value?: string | number | null) => {
+  const text = normalizeImportText(value);
+  if (!text) return null;
+
+  const iso = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[ T].*)?$/);
+  if (iso) {
+    const date = new Date(Date.UTC(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3])));
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  const mdy = text.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+  if (mdy) {
+    const first = Number(mdy[1]);
+    const second = Number(mdy[2]);
+    let year = Number(mdy[3]);
+    if (year < 100) year += year > 50 ? 1900 : 2000;
+    let day = first;
+    let month = second;
+    if (first <= 12 && second > 12) {
+      day = second;
+      month = first;
+    }
+    const date = new Date(Date.UTC(year, month - 1, day));
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  const parsed = new Date(text);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const parseImportCsv = (text: string) => {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let cell = '';
+  let quoted = false;
+
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    const next = text[index + 1];
+
+    if (char === '"') {
+      if (quoted && next === '"') {
+        cell += '"';
+        index += 1;
+      } else {
+        quoted = !quoted;
+      }
+      continue;
+    }
+
+    if (char === ',' && !quoted) {
+      row.push(cell.trim());
+      cell = '';
+      continue;
+    }
+
+    if ((char === '\n' || char === '\r') && !quoted) {
+      if (char === '\r' && next === '\n') {
+        index += 1;
+      }
+      row.push(cell.trim());
+      if (row.some((value) => value !== '')) {
+        rows.push(row);
+      }
+      row = [];
+      cell = '';
+      continue;
+    }
+
+    cell += char;
+  }
+
+  if (cell.length || row.length) {
+    row.push(cell.trim());
+    if (row.some((value) => value !== '')) {
+      rows.push(row);
+    }
+  }
+
+  return rows;
+};
+
+const normalizeImportGender = (value?: string | number | null): 'MALE' | 'FEMALE' | '' => {
+  const text = normalizeImportText(value).toUpperCase();
+  if (['M', 'MALE', 'BOY'].includes(text)) return 'MALE';
+  if (['F', 'FEMALE', 'GIRL'].includes(text)) return 'FEMALE';
+  return '';
+};
+
+const normalizeImportMotherTongue = (value?: string | number | null) => {
+  const text = normalizeImportText(value).toUpperCase().replace(/[^A-Z]/g, '');
+  if (!text) return null;
+  if (text === 'TELUGU') return 'TELUGU';
+  if (text === 'URDU' || text === 'URGU') return 'URGU';
+  if (text === 'ENGLISH') return 'ENGLISH';
+  return null;
+};
+
+const normalizeImportSocialCategory = (value?: string | number | null) => {
+  const text = normalizeImportText(value).toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (!text) return null;
+  if (text === 'OC' || text === 'GENERAL' || text === 'OPENCATEGORY') return 'OC';
+  if (text === 'BCA') return 'BC_A';
+  if (text === 'BCB') return 'BC_B';
+  if (text === 'BCC') return 'BC_C';
+  if (text === 'BCD') return 'BC_D';
+  if (text === 'BCE') return 'BC_E';
+  if (text === 'MBC' || text === 'MBCD' || text === 'MBCDNC') return 'MBC_DNC';
+  if (text === 'SC' || text === 'SCHEDULEDCASTE') return 'SC';
+  if (text === 'ST' || text === 'SCHEDULEDTRIBE') return 'ST';
+  return null;
+};
+
+const normalizeImportBloodGroup = (value?: string | number | null) => {
+  const text = normalizeImportText(value).toUpperCase().replace(/[^A-Z0-9+]/g, '');
+  if (!text) return null;
+  const map: Record<string, NonNullable<StudentImportRowPayload['bloodgroup']>> = {
+    'A+': 'A_POS',
+    'A+VE': 'A_POS',
+    APOS: 'A_POS',
+    'A-': 'A_NEG',
+    'A-VE': 'A_NEG',
+    ANEG: 'A_NEG',
+    'B+': 'B_POS',
+    'B+VE': 'B_POS',
+    BPOS: 'B_POS',
+    'B-': 'B_NEG',
+    'B-VE': 'B_NEG',
+    BNEG: 'B_NEG',
+    'AB+': 'AB_POS',
+    'AB+VE': 'AB_POS',
+    ABPOS: 'AB_POS',
+    'AB-': 'AB_NEG',
+    'AB-VE': 'AB_NEG',
+    ABNEG: 'AB_NEG',
+    'O+': 'O_POS',
+    'O+VE': 'O_POS',
+    OPOS: 'O_POS',
+    'O-': 'O_NEG',
+    'O-VE': 'O_NEG',
+    ONEG: 'O_NEG',
+  };
+  return map[text] ?? null;
+};
+
+const normalizeImportInteger = (value?: string | number | null) => {
+  const match = normalizeImportText(value).match(/\d+(?:\.\d+)?/);
+  if (!match) return null;
+  const numberValue = Math.floor(Number(match[0]));
+  return Number.isFinite(numberValue) ? numberValue : null;
+};
+
+const normalizeImportQualification = (value?: string | number | null) => {
+  const text = normalizeImportText(value).toUpperCase().replace(/[\s.]/g, '');
+  if (!text) return null;
+  const map: Record<string, string> = {
+    NOFORMALEDUCATION: 'NO_FORMAL_EDUCATION',
+    PRIMARY: 'PRIMARY',
+    MIDDLESCHOOL: 'MIDDLE_SCHOOL',
+    SECONDARY: 'SECONDARY',
+    HIGHERSECONDARY: 'HIGHER_SECONDARY',
+    DIPLOMA: 'DIPLOMA',
+    ITI: 'ITI',
+    BSC: 'BSC',
+    BCOM: 'BCOM',
+    BA: 'BA',
+    BTECH: 'BTECH',
+    BE: 'BE',
+    BBA: 'BBA',
+    BCA: 'BCA',
+    BDS: 'BDS',
+    MBBS: 'MBBS',
+    MSC: 'MSC',
+    MCOM: 'MCOM',
+    MA: 'MA',
+    MTECH: 'MTECH',
+    MBA: 'MBA',
+    MCA: 'MCA',
+    PHD: 'PHD',
+    OTHER: 'OTHER',
+  };
+  return map[text] ?? 'OTHER';
+};
+
+const IMPORT_HEADER_ALIAS_MAP: Record<string, string> = {
+  admissionno: 'admissionno',
+  admissionnumber: 'admissionno',
+  studentadmissionno: 'admissionno',
+  studentadmissionnumber: 'admissionno',
+  studentname: 'name',
+  name: 'name',
+  gender: 'gender',
+  dob: 'dob',
+  birthdate: 'dob',
+  studentaadhaarnumber: 'adharnumber',
+  studentaadharnumber: 'adharnumber',
+  aadhaar: 'adharnumber',
+  aadhar: 'adharnumber',
+  address: 'address',
+  pincode: 'pincode',
+  mothertongue: 'mothertongue',
+  socialcategory: 'socialcategory',
+  bloodgroup: 'bloodgroup',
+  admdate: 'admissiondate',
+  admissiondate: 'admissiondate',
+  studentsheight: 'height',
+  studentheight: 'height',
+  studentsweight: 'weight',
+  studentweight: 'weight',
+  fathername: 'fatherName',
+  mothername: 'motherName',
+  mobilenumber: 'mobileNumber',
+  mobilenumber1: 'mobileNumber',
+  fatheraadhar: 'fatherAadhar',
+  motheraadhar: 'motherAadhar',
+  qualification: 'qualification',
+  parentqualification: 'qualification',
+};
+
+const buildParentImportKey = (
+  parent: StudentImportPreviewRow['parents']['father'] | StudentImportPreviewRow['parents']['mother'],
+  type: 'MOTHER' | 'FATHER',
+) => {
+  const aadhar = normalizeImportDigits(parent.aadhar);
+  const phone = normalizeImportDigits(parent.phone);
+  const name = normalizeImportText(parent.name).toLowerCase();
+  if (aadhar) return `${type}:aadhar:${aadhar}`;
+  if (phone) return `${type}:phone:${phone}`;
+  if (name) return `${type}:name:${name}`;
+  return `${type}:empty`;
+};
+
+function parseStudentImportPreview(text: string): StudentImportPreviewRow[] {
+  const table = parseImportCsv(text);
+  if (!table.length) {
+    return [];
+  }
+
+  const [headerRow, ...dataRows] = table;
+  const headerMap = headerRow.map((header) => IMPORT_HEADER_ALIAS_MAP[normalizeImportKey(header)] ?? null);
+
+  return dataRows.map((values, index) => {
+    const raw: Record<string, string> = {};
+    headerMap.forEach((field, fieldIndex) => {
+      if (!field) return;
+      raw[field] = normalizeImportText(values[fieldIndex] ?? '');
+    });
+
+    const admissionno = raw.admissionno || `TEMP-${index + 1}`;
+    const name = raw.name || '';
+    const gender = normalizeImportGender(raw.gender);
+    const dobDate = parseImportFlexibleDate(raw.dob);
+    const admissionDate = parseImportFlexibleDate(raw.admissiondate);
+    const height = normalizeImportInteger(raw.height);
+    const weight = normalizeImportInteger(raw.weight);
+    const motherName = normalizeImportText(raw.motherName);
+    const fatherName = normalizeImportText(raw.fatherName);
+    const mobileNumber = normalizeImportDigits(raw.mobileNumber);
+    const fatherAadhar = normalizeImportDigits(raw.fatherAadhar);
+    const motherAadhar = normalizeImportDigits(raw.motherAadhar);
+    const qualification = normalizeImportQualification(raw.qualification) || '';
+
+    const errors: string[] = [];
+    if (!name) errors.push('Missing student name');
+    if (!gender) errors.push('Missing or invalid gender');
+    if (raw.dob && !dobDate) errors.push('Invalid DOB format');
+    if (raw.admissiondate && !admissionDate) errors.push('Invalid admission date format');
+    if (raw.height && height === null) errors.push('Invalid height value');
+    if (raw.weight && weight === null) errors.push('Invalid weight value');
+    if (raw.mothertongue && !normalizeImportMotherTongue(raw.mothertongue)) errors.push('Invalid mother tongue');
+    if (raw.socialcategory && !normalizeImportSocialCategory(raw.socialcategory)) errors.push('Invalid social category');
+    if (raw.bloodgroup && !normalizeImportBloodGroup(raw.bloodgroup)) errors.push('Invalid blood group');
+
+    return {
+      rowNumber: index + 2,
+      admissionno,
+      name,
+      gender,
+      dob: dobDate ? dobDate.toISOString().slice(0, 10) : '',
+      adharnumber: normalizeImportDigits(raw.adharnumber),
+      pincode: normalizeImportDigits(raw.pincode),
+      mothertongue: normalizeImportMotherTongue(raw.mothertongue) ?? '',
+      socialcategory: normalizeImportSocialCategory(raw.socialcategory) ?? '',
+      bloodgroup: normalizeImportBloodGroup(raw.bloodgroup) ?? '',
+      admissiondate: admissionDate ? admissionDate.toISOString().slice(0, 10) : '',
+      height: height === null ? '' : String(height),
+      weight: weight === null ? '' : String(weight),
+      address: normalizeImportText(raw.address),
+      parents: {
+        father: {
+          name: fatherName,
+          phone: mobileNumber,
+          aadhar: fatherAadhar,
+          qualification,
+        },
+        mother: {
+          name: motherName,
+          phone: mobileNumber,
+          aadhar: motherAadhar,
+          qualification,
+        },
+      },
+      errors,
+      valid: errors.length === 0,
+    };
+  });
+}
+
+function toStudentImportPayload(row: StudentImportPreviewRow): StudentImportRowPayload {
+  return {
+    rowNumber: row.rowNumber,
+    admissionno: row.admissionno,
+    name: row.name,
+    gender: row.gender as 'MALE' | 'FEMALE' | '',
+    dob: row.dob || null,
+    adharnumber: row.adharnumber || null,
+    pincode: row.pincode || null,
+    mothertongue: (row.mothertongue || null) as StudentImportRowPayload['mothertongue'],
+    socialcategory: (row.socialcategory || null) as StudentImportRowPayload['socialcategory'],
+    bloodgroup: (row.bloodgroup || null) as StudentImportRowPayload['bloodgroup'],
+    admissiondate: row.admissiondate || null,
+    height: row.height ? Number(row.height) : null,
+    weight: row.weight ? Number(row.weight) : null,
+    address: row.address || null,
+    fatherName: row.parents.father.name || null,
+    motherName: row.parents.mother.name || null,
+    mobileNumber: row.parents.father.phone || row.parents.mother.phone || null,
+    fatherAadhar: row.parents.father.aadhar || null,
+    motherAadhar: row.parents.mother.aadhar || null,
+    qualification: row.parents.father.qualification || row.parents.mother.qualification || null,
+    parents: {
+      father: row.parents.father.name || row.parents.father.phone || row.parents.father.aadhar
+        ? {
+            name: row.parents.father.name || '',
+            phone: row.parents.father.phone || null,
+            aadhar: row.parents.father.aadhar || null,
+            qualification: row.parents.father.qualification || null,
+            relation: 'Father',
+          }
+        : null,
+      mother: row.parents.mother.name || row.parents.mother.phone || row.parents.mother.aadhar
+        ? {
+            name: row.parents.mother.name || '',
+            phone: row.parents.mother.phone || null,
+            aadhar: row.parents.mother.aadhar || null,
+            qualification: row.parents.mother.qualification || null,
+            relation: 'Mother',
+          }
+        : null,
+    },
+    errors: row.errors,
+  };
+}
+
+function buildImportErrorReport(rows: Array<{ rowNumber: number; admissionno?: string | null; name?: string | null; errors: string[] }>) {
+  const header = ['Row', 'Admission No', 'Student', 'Errors'];
+  const csv = [
+    header.join(','),
+    ...rows.map((row) =>
+      [row.rowNumber, row.admissionno, row.name, row.errors.join(' | ')].map((value) => `"${String(value).replace(/"/g, '""')}"`).join(','),
+    ),
+  ].join('\n');
+  return csv;
+}
+
 function Dashboard({ user, token, onLogout }: { user: User; token: string; onLogout: () => void }) {
   const [activePrincipalMenu, setActivePrincipalMenu] = useState(() => localStorage.getItem(PRINCIPAL_MENU_KEY) || 'Dashboard');
   const [classes, setClasses] = useState<ClassSection[]>([]);
@@ -287,6 +937,7 @@ function Dashboard({ user, token, onLogout }: { user: User; token: string; onLog
   const [showQuickParentModal, setShowQuickParentModal] = useState(false);
   const [studentParentSearch, setStudentParentSearch] = useState('');
   const [studentDirectorySearch, setStudentDirectorySearch] = useState('');
+  const [selectedStudentClassId, setSelectedStudentClassId] = useState<number | null>(null);
   const [activeStudentId, setActiveStudentId] = useState<number | null>(null);
   const [studentProfiles, setStudentProfiles] = useState<Record<number, StudentMasterDetail>>({});
   const [attachmentsLoading, setAttachmentsLoading] = useState(false);
@@ -306,6 +957,10 @@ function Dashboard({ user, token, onLogout }: { user: User; token: string; onLog
   const [teacherSearch, setTeacherSearch] = useState('');
   const [createTeacherLoading, setCreateTeacherLoading] = useState(false);
   const [updateTeacherLoading, setUpdateTeacherLoading] = useState(false);
+  const [parentDashboardLoading, setParentDashboardLoading] = useState(false);
+  const [parentDetailLoading, setParentDetailLoading] = useState(false);
+  const [parentStudentSearch, setParentStudentSearch] = useState('');
+  const [activeParentStudentId, setActiveParentStudentId] = useState<number | null>(null);
   const [examModuleLoading, setExamModuleLoading] = useState(false);
   const [subjectModuleLoading, setSubjectModuleLoading] = useState(false);
   const [subjectSearch, setSubjectSearch] = useState('');
@@ -354,6 +1009,28 @@ function Dashboard({ user, token, onLogout }: { user: User; token: string; onLog
   const [showEditPaymentModal, setShowEditPaymentModal] = useState(false);
   const [showManageStudentDetailsModal, setShowManageStudentDetailsModal] = useState(false);
   const [showStudentInsightsModal, setShowStudentInsightsModal] = useState(false);
+  const [studentImportFileName, setStudentImportFileName] = useState('');
+  const [studentImportClassId, setStudentImportClassId] = useState('');
+  const [studentImportRows, setStudentImportRows] = useState<StudentImportPreviewRow[]>([]);
+  const [studentImportParsing, setStudentImportParsing] = useState(false);
+  const [studentImportImporting, setStudentImportImporting] = useState(false);
+  const [showStudentImportConfirm, setShowStudentImportConfirm] = useState(false);
+  const [studentImportEditIndex, setStudentImportEditIndex] = useState<number | null>(null);
+  const [studentImportEditForm, setStudentImportEditForm] = useState<StudentImportPreviewRow | null>(null);
+  const [studentImportResult, setStudentImportResult] = useState<{
+    classId?: number;
+    className?: string;
+    createdStudents: number;
+    createdParents: number;
+    createdMothers: number;
+    createdFathers: number;
+    linkedParents: number;
+    linkedRelations: number;
+    reusedParents: number;
+    skippedRows: number;
+    failedRows: Array<{ rowNumber: number; admissionno?: string | null; name?: string | null; step?: string; errors: string[] }>;
+    stepTrace?: Array<{ rowNumber: number; admissionno?: string | null; name?: string | null; step?: string; message: string }>;
+  } | null>(null);
   const [selectedFeeForPayment, setSelectedFeeForPayment] = useState<FeeOption | null>(null);
   const [overviewTooltip, setOverviewTooltip] = useState<{
     x: number;
@@ -533,6 +1210,7 @@ function Dashboard({ user, token, onLogout }: { user: User; token: string; onLog
   const principalMenus: Array<{ name: string; Icon: IconType }> = [
     { name: 'Dashboard', Icon: LuGauge },
     { name: 'Students', Icon: LuGraduationCap },
+    { name: 'Import Data', Icon: LuUpload },
     { name: 'Class', Icon: LuBookCopy },
     { name: 'Bus', Icon: LuCircleDollarSign },
     { name: 'Parents', Icon: LuUsers },
@@ -541,7 +1219,7 @@ function Dashboard({ user, token, onLogout }: { user: User; token: string; onLog
     { name: 'Subject', Icon: LuBookCopy },
     { name: 'Exam', Icon: LuBookOpen },
     { name: 'Marks', Icon: LuBookOpen },
-    { name: 'Payment', Icon: LuCircleDollarSign },
+    { name: 'Payments', Icon: LuCircleDollarSign },
   ];
 
   useEffect(() => {
@@ -554,36 +1232,141 @@ function Dashboard({ user, token, onLogout }: { user: User; token: string; onLog
     }
   }, [user.role, activePrincipalMenu]);
 
-  const studentDirectoryRows = useMemo(() => {
+  useEffect(() => {
+    if (studentImportClassId && !classes.some((cls) => String(cls.id) === studentImportClassId)) {
+      setStudentImportClassId('');
+    }
+  }, [classes, studentImportClassId]);
+
+  useEffect(() => {
+    if (selectedStudentClassId && !classes.some((cls) => cls.id === selectedStudentClassId)) {
+      setSelectedStudentClassId(null);
+    }
+  }, [classes, selectedStudentClassId]);
+
+  const studentDirectoryRows = useMemo<StudentDirectoryRow[]>(() => {
     return classes.flatMap((cls) =>
       (cls.students ?? []).map((student) => ({
         id: student.id,
         name: student.name,
+        admissionno: student.admissionno ?? null,
+        parents: student.parents ?? [],
+        classId: cls.id,
         className: cls.name,
         section: cls.section,
+        teacherName: cls.teacher?.name ?? null,
       })),
     );
   }, [classes]);
 
-  const filteredStudentDirectoryRows = useMemo(() => {
+  const studentClassCards = useMemo(() => {
+    return classes.map((cls) => ({
+      id: cls.id,
+      name: cls.name,
+      section: cls.section,
+      teacherName: cls.teacher?.name ?? 'Unassigned',
+      totalStudents: (cls.students ?? []).length,
+    }));
+  }, [classes]);
+
+  const selectedStudentClass = useMemo(() => {
+    if (!selectedStudentClassId) {
+      return null;
+    }
+    return classes.find((cls) => cls.id === selectedStudentClassId) ?? null;
+  }, [classes, selectedStudentClassId]);
+
+  const selectedStudentDirectoryRows = useMemo(() => {
+    const baseRows = selectedStudentClassId
+      ? studentDirectoryRows.filter((row) => row.classId === selectedStudentClassId)
+      : studentDirectoryRows;
+
     const query = studentDirectorySearch.trim().toLowerCase();
     if (!query) {
-      return studentDirectoryRows;
+      return baseRows;
     }
 
-    return studentDirectoryRows.filter((row) => {
+    return baseRows.filter((row) => {
       const profile = studentProfiles[row.id];
-      const parentText = (profile?.parents ?? [])
-        .map((item) => item.parent?.name ?? '')
+      const parentPhones = (row.parents ?? [])
+        .map((item) => `${item.parent?.phone1 ?? ''} ${item.parent?.phone2 ?? ''}`)
+        .join(' ');
+      const parentText = (row.parents ?? [])
+        .map((item) => `${item.parent?.name ?? ''} ${item.parent?.phone1 ?? ''} ${item.parent?.phone2 ?? ''}`)
+        .join(' ')
+        .toLowerCase();
+      const searchText = [
+        row.name,
+        row.admissionno ?? '',
+        row.className,
+        row.section,
+        row.teacherName ?? '',
+        profile?.name ?? '',
+        profile?.admissionno ?? '',
+        profile?.gender ?? '',
+        profile?.adharnumber ?? '',
+        profile?.pincode ?? '',
+        profile?.mothertongue ?? '',
+        profile?.socialcategory ?? '',
+        profile?.bloodgroup ?? '',
+        profile?.address ?? '',
+        profile?.bus?.busNumber ? `bus ${profile.bus.busNumber}` : '',
+        profile?.bus?.routeName ?? '',
+        profile?.class?.teacher?.name ?? '',
+        parentPhones,
+        parentText,
+      ]
         .join(' ')
         .toLowerCase();
       return (
         row.name.toLowerCase().includes(query) ||
+        String(row.admissionno ?? '').toLowerCase().includes(query) ||
         String(row.className).toLowerCase().includes(query) ||
         row.section.toLowerCase().includes(query) ||
-        parentText.includes(query)
+        searchText.includes(query)
       );
     });
+  }, [selectedStudentClassId, studentDirectoryRows, studentDirectorySearch, studentProfiles]);
+
+  const studentSearchResults = useMemo<StudentDirectoryRow[]>(() => {
+    const query = studentDirectorySearch.trim().toLowerCase();
+    if (!query) {
+      return [];
+    }
+
+    return studentDirectoryRows
+      .filter((row) => {
+        const profile = studentProfiles[row.id];
+        const searchText = [
+          row.name,
+          row.admissionno ?? '',
+          row.className,
+          row.section,
+          row.teacherName ?? '',
+          profile?.name ?? '',
+          profile?.admissionno ?? '',
+          profile?.gender ?? '',
+          profile?.adharnumber ?? '',
+          profile?.pincode ?? '',
+          profile?.mothertongue ?? '',
+          profile?.socialcategory ?? '',
+          profile?.bloodgroup ?? '',
+          profile?.address ?? '',
+          profile?.bus?.busNumber ? `bus ${profile.bus.busNumber}` : '',
+          profile?.bus?.routeName ?? '',
+          profile?.class?.teacher?.name ?? '',
+          (row.parents ?? [])
+            .map((item) => `${item.parent?.name ?? ''} ${item.parent?.phone1 ?? ''} ${item.parent?.phone2 ?? ''}`)
+            .join(' '),
+          (profile?.parents ?? [])
+            .map((item) => `${item.parent?.name ?? ''} ${item.parent?.phone1 ?? ''} ${item.parent?.phone2 ?? ''} ${item.parent?.adharnumber ?? ''}`)
+            .join(' '),
+        ]
+          .join(' ')
+          .toLowerCase();
+        return searchText.includes(query);
+      })
+      .slice(0, 8);
   }, [studentDirectoryRows, studentDirectorySearch, studentProfiles]);
 
   const filteredStudentParentOptions = useMemo(() => {
@@ -598,7 +1381,7 @@ function Dashboard({ user, token, onLogout }: { user: User; token: string; onLog
     });
   }, [parents, studentParentSearch]);
 
-  const loadClasses = async () => {
+  const loadClasses = useCallback(async () => {
     if (!token) {
       return;
     }
@@ -637,7 +1420,7 @@ function Dashboard({ user, token, onLogout }: { user: User; token: string; onLog
     } catch {
       toast.error('Network error while loading classes.');
     }
-  };
+  }, [token]);
 
   const tryGetWithFallback = async <T,>(endpoints: string[]): Promise<T | null> => {
     for (const endpoint of endpoints) {
@@ -677,7 +1460,7 @@ function Dashboard({ user, token, onLogout }: { user: User; token: string; onLog
     }
   };
 
-  const loadStudentProfile = async (studentId: number) => {
+  const loadStudentProfile = useCallback(async (studentId: number) => {
     if (!token) {
       return null;
     }
@@ -703,6 +1486,259 @@ function Dashboard({ user, token, onLogout }: { user: User; token: string; onLog
       return payload.data as StudentMasterDetail;
     } catch {
       return null;
+    }
+  }, [token]);
+
+  const parseStudentImportFile = async (file: File | null) => {
+    if (!file) {
+      setStudentImportFileName('');
+      setStudentImportRows([]);
+      setStudentImportResult(null);
+      return;
+    }
+
+    setStudentImportParsing(true);
+    try {
+      const text = await file.text();
+      const parsedRows = parseStudentImportPreview(text);
+      setStudentImportFileName(file.name);
+      setStudentImportRows(parsedRows);
+      setStudentImportResult(null);
+      if (!parsedRows.length) {
+        toast.error('The CSV file is empty or has no valid rows.');
+      } else {
+        const invalidCount = parsedRows.filter((row) => !row.valid).length;
+        if (invalidCount) {
+          toast.warn(`${invalidCount} row(s) need attention before import.`);
+        } else {
+          toast.success(`Preview ready for ${parsedRows.length} row(s).`);
+        }
+      }
+    } catch (error) {
+      console.log(error);
+      toast.error('Unable to read the CSV file.');
+      setStudentImportRows([]);
+      setStudentImportFileName('');
+    } finally {
+      setStudentImportParsing(false);
+    }
+  };
+
+  const handleStudentImportFileInput = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    await parseStudentImportFile(file);
+    event.target.value = '';
+  };
+
+  const handleStudentImportReset = () => {
+    setStudentImportFileName('');
+    setStudentImportClassId('');
+    setStudentImportRows([]);
+    setStudentImportResult(null);
+    setShowStudentImportConfirm(false);
+    setStudentImportEditIndex(null);
+    setStudentImportEditForm(null);
+  };
+
+  const openStudentImportRowEditor = (row: StudentImportPreviewRow, index: number) => {
+    setStudentImportEditIndex(index);
+    setStudentImportEditForm({ ...row, parents: { father: { ...row.parents.father }, mother: { ...row.parents.mother } } });
+  };
+
+  const saveStudentImportRowEditor = () => {
+    if (studentImportEditIndex === null || !studentImportEditForm) {
+      return;
+    }
+
+    const row = studentImportEditForm;
+    const errors: string[] = [];
+    if (!row.name.trim()) errors.push('Missing student name');
+    if (!row.gender) errors.push('Missing or invalid gender');
+
+    const updatedRow: StudentImportPreviewRow = {
+      ...row,
+      name: row.name.trim(),
+      admissionno: row.admissionno.trim(),
+      address: row.address.trim(),
+      parents: {
+        father: {
+          ...row.parents.father,
+          name: row.parents.father.name.trim(),
+          phone: normalizeImportDigits(row.parents.father.phone),
+          aadhar: normalizeImportDigits(row.parents.father.aadhar),
+          qualification: normalizeImportQualification(row.parents.father.qualification) ?? '',
+        },
+        mother: {
+          ...row.parents.mother,
+          name: row.parents.mother.name.trim(),
+          phone: normalizeImportDigits(row.parents.mother.phone),
+          aadhar: normalizeImportDigits(row.parents.mother.aadhar),
+          qualification: normalizeImportQualification(row.parents.mother.qualification) ?? '',
+        },
+      },
+      gender: row.gender === 'MALE' || row.gender === 'FEMALE' ? row.gender : '',
+      dob: row.dob ? row.dob.trim() : '',
+      adharnumber: normalizeImportDigits(row.adharnumber),
+      pincode: normalizeImportDigits(row.pincode),
+      mothertongue: normalizeImportMotherTongue(row.mothertongue) ?? '',
+      socialcategory: normalizeImportSocialCategory(row.socialcategory) ?? '',
+      bloodgroup: normalizeImportBloodGroup(row.bloodgroup) ?? '',
+      admissiondate: row.admissiondate ? row.admissiondate.trim() : '',
+      height: row.height ? String(normalizeImportInteger(row.height) ?? '') : '',
+      weight: row.weight ? String(normalizeImportInteger(row.weight) ?? '') : '',
+      errors,
+      valid: errors.length === 0,
+    };
+
+    setStudentImportRows((prev) => prev.map((item, index) => (index === studentImportEditIndex ? updatedRow : item)));
+    setStudentImportEditIndex(null);
+    setStudentImportEditForm(null);
+    toast.success('Row updated in preview.');
+  };
+
+  const downloadStudentImportErrors = () => {
+    const rows = studentImportResult?.failedRows?.length
+      ? studentImportResult.failedRows.map((row) => ({
+          rowNumber: row.rowNumber,
+          admissionno: row.admissionno ?? '',
+          name: row.name ?? '',
+          errors: row.errors,
+        }))
+      : studentImportRows.filter((row) => !row.valid).map((row) => ({
+          rowNumber: row.rowNumber,
+          admissionno: row.admissionno,
+          name: row.name,
+          errors: row.errors,
+        }));
+    if (!rows.length) {
+      toast.info('No validation errors to export.');
+      return;
+    }
+
+    const blob = new Blob([buildImportErrorReport(rows)], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'student-import-errors.csv';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleStudentImportSubmit = () => {
+    if (!studentImportRows.length) {
+      toast.error('Upload a CSV file first.');
+      return;
+    }
+
+    if (!studentImportValidRows.length) {
+      toast.error('There are no valid rows to import.');
+      return;
+    }
+
+    setShowStudentImportConfirm(true);
+  };
+
+  const handleStudentImportConfirm = async () => {
+    if (!token) {
+      return;
+    }
+
+    const classId = Number(studentImportClassId);
+    if (!Number.isFinite(classId) || classId <= 0) {
+      toast.error('Please enter a valid Class ID.');
+      return;
+    }
+
+    if (!studentImportRows.length) {
+      toast.error('Upload a CSV file first.');
+      return;
+    }
+
+    const validRows = studentImportRows.filter((row) => row.valid);
+    if (!validRows.length) {
+      toast.error('There are no valid rows to import.');
+      return;
+    }
+
+    setStudentImportImporting(true);
+    setShowStudentImportConfirm(false);
+    try {
+      const response = await fetch(`${API_BASE}/student/bulk-import-students`, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          classId,
+          rows: validRows.map(toStudentImportPayload),
+        }),
+      });
+
+      const payload = await readJson<{
+        message?: string;
+        data?: {
+          classId?: number;
+          className?: string;
+          createdStudents?: number;
+          createdParents?: number;
+          createdMothers?: number;
+          createdFathers?: number;
+          linkedParents?: number;
+          linkedRelations?: number;
+          reusedParents?: number;
+          skippedRows?: number;
+          failedRows?: Array<{ rowNumber: number; admissionno?: string | null; name?: string | null; step?: string; errors: string[] }>;
+          stepTrace?: Array<{ rowNumber: number; admissionno?: string | null; name?: string | null; step?: string; message: string }>;
+        };
+      }>(response);
+
+      if (!response.ok) {
+        toast.error(payload?.message ?? 'Student import failed.');
+        return;
+      }
+
+      setStudentImportResult({
+        classId: payload?.data?.classId,
+        className: payload?.data?.className,
+        createdStudents: payload?.data?.createdStudents ?? 0,
+        createdParents: payload?.data?.createdParents ?? 0,
+        createdMothers: payload?.data?.createdMothers ?? 0,
+        createdFathers: payload?.data?.createdFathers ?? 0,
+        linkedParents: payload?.data?.linkedParents ?? 0,
+        linkedRelations: payload?.data?.linkedRelations ?? 0,
+        reusedParents: payload?.data?.reusedParents ?? 0,
+        skippedRows: payload?.data?.skippedRows ?? 0,
+        failedRows: payload?.data?.failedRows ?? [],
+        stepTrace: payload?.data?.stepTrace ?? [],
+      });
+
+      const createdStudents = payload?.data?.createdStudents ?? 0;
+      const createdParents = payload?.data?.createdParents ?? 0;
+      const createdMothers = payload?.data?.createdMothers ?? 0;
+      const createdFathers = payload?.data?.createdFathers ?? 0;
+      const linkedRelations = payload?.data?.linkedRelations ?? 0;
+      const failedRows = payload?.data?.failedRows ?? [];
+
+      if (createdStudents || createdParents) {
+        toast.success(`Imported ${createdStudents} student(s) and ${createdParents} parent record(s).`);
+      }
+      if (createdMothers || createdFathers || linkedRelations) {
+        toast.info(
+          `Mother records: ${createdMothers}, Father records: ${createdFathers}, Parent links: ${linkedRelations}.`,
+        );
+      }
+      if (failedRows.length) {
+        toast.warn(`${failedRows.length} row(s) were skipped during import.`);
+      }
+    } catch (error) {
+      console.log(error);
+      toast.error('Network error while importing students.');
+    } finally {
+      setStudentImportImporting(false);
     }
   };
 
@@ -893,6 +1929,12 @@ function Dashboard({ user, token, onLogout }: { user: User; token: string; onLog
   }, [user.role, activePrincipalMenu]);
 
   useEffect(() => {
+    if (user.role === 'PRINCIPAL' && activePrincipalMenu === 'Import Data') {
+      loadStudentsModuleData();
+    }
+  }, [user.role, activePrincipalMenu]);
+
+  useEffect(() => {
     if (user.role === 'PRINCIPAL' && activePrincipalMenu === 'Class') {
       loadClassModuleData();
     }
@@ -929,7 +1971,7 @@ function Dashboard({ user, token, onLogout }: { user: User; token: string; onLog
   }, [user.role, activePrincipalMenu]);
 
   useEffect(() => {
-    if (user.role === 'PRINCIPAL' && activePrincipalMenu === 'Payment') {
+    if (user.role === 'PRINCIPAL' && activePrincipalMenu === 'Payments') {
       loadFeeModuleData();
     }
   }, [user.role, activePrincipalMenu]);
@@ -945,6 +1987,24 @@ function Dashboard({ user, token, onLogout }: { user: User; token: string; onLog
       loadFeeModuleData();
     }
   }, [user.role]);
+
+  useEffect(() => {
+    if (user.role !== 'PARENT') {
+      return;
+    }
+
+    let cancelled = false;
+    setParentDashboardLoading(true);
+    loadClasses().finally(() => {
+      if (!cancelled) {
+        setParentDashboardLoading(false);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [loadClasses, user.role]);
 
   useEffect(() => {
     setMarksMode(canManageMarks ? 'manage' : 'view');
@@ -1032,9 +2092,13 @@ function Dashboard({ user, token, onLogout }: { user: User; token: string; onLog
     setActiveStudentId(studentId);
     setStudentAction('view');
     setShowStudentInsightsModal(true);
-    if (!studentProfiles[studentId]) {
-      setStudentProfileLoading(true);
-      await loadStudentProfile(studentId);
+    setStudentProfileLoading(true);
+    try {
+      const profile = studentProfiles[studentId] ?? (await loadStudentProfile(studentId));
+      if (profile?.classId) {
+        setSelectedStudentClassId(profile.classId);
+      }
+    } finally {
       setStudentProfileLoading(false);
     }
   };
@@ -1045,6 +2109,9 @@ function Dashboard({ user, token, onLogout }: { user: User; token: string; onLog
     setStudentProfileLoading(true);
     const profile = studentProfiles[studentId] ?? (await loadStudentProfile(studentId));
     if (profile) {
+      if (profile.classId) {
+        setSelectedStudentClassId(profile.classId);
+      }
       const dobIso = profile.dob ? new Date(profile.dob).toISOString().slice(0, 10) : '';
       setEditStudentForm({
         id: String(profile.id),
@@ -1145,7 +2212,7 @@ function Dashboard({ user, token, onLogout }: { user: User; token: string; onLog
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          name: Number(createClassForm.name),
+          name: createClassForm.name.trim(),
           section: createClassForm.section,
           teacherId: Number(createClassForm.teacherId),
         }),
@@ -1185,7 +2252,7 @@ function Dashboard({ user, token, onLogout }: { user: User; token: string; onLog
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          name: Number(editClassForm.name),
+          name: editClassForm.name.trim(),
           section: editClassForm.section,
           teacherId: Number(editClassForm.teacherId),
         }),
@@ -2086,9 +3153,13 @@ function Dashboard({ user, token, onLogout }: { user: User; token: string; onLog
     return activeStudentProfile.class as ClassSection | null;
   }, [activeStudentProfile, classes]);
 
-  const activeStudentPrimaryParent = useMemo(() => {
-    return activeStudentProfile?.parents?.[0]?.parent ?? null;
+  const activeStudentParents = useMemo<StudentParentProfile[]>(() => {
+    return (activeStudentProfile?.parents ?? []).flatMap((item) => (item.parent ? [item.parent] : []));
   }, [activeStudentProfile]);
+
+  const activeStudentPrimaryParent = useMemo(() => {
+    return activeStudentParents[0] ?? null;
+  }, [activeStudentParents]);
 
   const activeStudentFees = useMemo(() => {
     if (!activeStudentId) {
@@ -2222,6 +3293,269 @@ function Dashboard({ user, token, onLogout }: { user: User; token: string; onLog
     const latest = activeStudentMarksRows[0] ?? null;
     return { totalExams, average, best, latest };
   }, [activeStudentMarksRows]);
+
+  const parentLinkedStudents = useMemo<ParentStudentRow[]>(() => {
+    const parentId = user.parent?.id ?? null;
+    if (!parentId) {
+      return [];
+    }
+
+    const studentMap = new Map<number, ParentStudentRow>();
+
+    classes.forEach((cls) => {
+      const classStudents = cls.students ?? [];
+      const classSessions = cls.attendanceSessions ?? [];
+
+      classStudents.forEach((student) => {
+        const isLinked = (student.parents ?? []).some((item) => item.parent?.id === parentId);
+        if (!isLinked) {
+          return;
+        }
+
+        const studentFees = fees.filter((fee) => fee.studentId === student.id);
+        const totalFees = studentFees.reduce((sum, fee) => sum + Number(fee.total ?? 0), 0);
+        const paidFees = studentFees.reduce(
+          (sum, fee) =>
+            sum +
+            fee.payments
+              .filter((payment) => payment.status === 'SUCCESS')
+              .reduce((amountSum, payment) => amountSum + Number(payment.amount ?? 0), 0),
+          0,
+        );
+        const remainingFees = Math.max(totalFees - paidFees, 0);
+
+        const studentMarks = marksRecords.filter((mark) => mark.studentId === student.id);
+        const markRows = studentMarks
+          .map((mark) => {
+            const exam = mark.exam ?? null;
+            const totalMarks = Number(exam?.totalMarks ?? 0);
+            const percent = totalMarks ? Math.min(Math.round((Number(mark.marks ?? 0) / totalMarks) * 100), 100) : 0;
+            return {
+              ...mark,
+              examName: exam?.name ?? `Exam ${mark.examId}`,
+              percent,
+              examDate: exam?.examDate ? new Date(exam.examDate).getTime() : 0,
+            };
+          })
+          .sort((a, b) => b.examDate - a.examDate || b.percent - a.percent);
+
+        const averageMarks = markRows.length
+          ? Math.round(markRows.reduce((sum, row) => sum + row.percent, 0) / markRows.length)
+          : 0;
+        const bestMarks = markRows.length ? Math.max(...markRows.map((row) => row.percent)) : 0;
+        const latestMark = markRows[0] ?? null;
+
+        let attendancePresent = 0;
+        let attendanceAbsent = 0;
+        classSessions.forEach((session) => {
+          const record = (session.attendances ?? []).find((item) => item.studentId === student.id);
+          if (!record) {
+            return;
+          }
+          if (record.status === 'PRESENT') {
+            attendancePresent += 1;
+          } else {
+            attendanceAbsent += 1;
+          }
+        });
+        const attendanceTotal = attendancePresent + attendanceAbsent;
+        const attendancePercent = attendanceTotal ? Math.round((attendancePresent / attendanceTotal) * 100) : null;
+
+        const guardianName = (student.parents ?? []).find((item) => item.parent)?.parent?.name ?? null;
+
+        studentMap.set(student.id, {
+          id: student.id,
+          name: student.name,
+          admissionno: student.admissionno,
+          gender: student.gender ?? null,
+          dob: student.dob ?? null,
+          classId: cls.id,
+          className: cls.name,
+          section: cls.section,
+          teacherName: cls.teacher?.name ?? null,
+          teacherEmail: cls.teacher?.user?.email ?? null,
+          totalFees,
+          paidFees,
+          remainingFees,
+          feeCount: studentFees.length,
+          averageMarks,
+          bestMarks,
+          latestExamName: latestMark?.examName ?? null,
+          latestExamPercent: latestMark?.percent ?? 0,
+          attendanceTotal,
+          attendancePresent,
+          attendanceAbsent,
+          attendancePercent,
+          guardianCount: (student.parents ?? []).filter((item) => item.parent).length,
+          primaryGuardianName: guardianName,
+        });
+      });
+    });
+
+    return Array.from(studentMap.values()).sort((a, b) => {
+      const classCompare = a.className.localeCompare(b.className);
+      if (classCompare !== 0) return classCompare;
+      return a.name.localeCompare(b.name);
+    });
+  }, [classes, fees, marksRecords, user.parent?.id]);
+
+  const activeParentStudentRow = useMemo(() => {
+    if (!activeParentStudentId) {
+      return parentLinkedStudents[0] ?? null;
+    }
+    return parentLinkedStudents.find((student) => student.id === activeParentStudentId) ?? null;
+  }, [activeParentStudentId, parentLinkedStudents]);
+
+  const activeParentStudentDetail = useMemo(() => {
+    if (!activeParentStudentRow) {
+      return null;
+    }
+    return studentProfiles[activeParentStudentRow.id] ?? null;
+  }, [activeParentStudentRow, studentProfiles]);
+
+  const activeParentStudentFeeDetails = useMemo(() => {
+    return activeParentStudentDetail?.feeDetails ?? [];
+  }, [activeParentStudentDetail]);
+
+  const activeParentStudentMarkDetails = useMemo(() => {
+    return activeParentStudentDetail?.marks ?? [];
+  }, [activeParentStudentDetail]);
+
+  const activeParentStudentClass = useMemo(() => {
+    if (!activeParentStudentRow) {
+      return null;
+    }
+    return activeParentStudentDetail?.class ?? classes.find((cls) => cls.id === activeParentStudentRow.classId) ?? null;
+  }, [activeParentStudentDetail, activeParentStudentRow, classes]);
+
+  const activeParentStudentGuardianProfiles = useMemo<StudentParentProfile[]>(() => {
+    return (activeParentStudentDetail?.parents ?? []).flatMap((item) => (item.parent ? [item.parent] : []));
+  }, [activeParentStudentDetail]);
+
+  const activeParentStudentSummary = useMemo(() => {
+    const feeTotal = activeParentStudentFeeDetails.reduce((sum, fee) => sum + Number(fee.total ?? 0), 0);
+    const feePaid = activeParentStudentFeeDetails.reduce(
+      (sum, fee) =>
+        sum +
+        (fee.totalPaid ??
+          (fee.payments ?? []).filter((payment) => payment.status === 'SUCCESS').reduce((paymentSum, payment) => paymentSum + Number(payment.amount ?? 0), 0)),
+      0,
+    );
+    const feeRemaining = activeParentStudentFeeDetails.reduce(
+      (sum, fee) => sum + Number(fee.remaining ?? Math.max(Number(fee.total ?? 0) - Number(fee.totalPaid ?? 0), 0)),
+      0,
+    );
+    const markRows = activeParentStudentMarkDetails
+      .map((mark) => {
+        const exam = mark.exam ?? null;
+        const totalMarks = Number(exam?.totalMarks ?? 0);
+        const percent = totalMarks ? Math.min(Math.round((Number(mark.marks ?? 0) / totalMarks) * 100), 100) : 0;
+        return {
+          ...mark,
+          examName: exam?.name ?? `Exam ${mark.examId}`,
+          subjectName: exam?.subject?.name ?? 'Subject',
+          percent,
+          examDate: exam?.examDate ? new Date(exam.examDate).getTime() : 0,
+        };
+      })
+      .sort((a, b) => b.examDate - a.examDate || b.percent - a.percent);
+    const averageMarks = markRows.length ? Math.round(markRows.reduce((sum, row) => sum + row.percent, 0) / markRows.length) : 0;
+    const latestMark = markRows[0] ?? null;
+
+    return {
+      feeTotal,
+      feePaid,
+      feeRemaining,
+      feeCount: activeParentStudentFeeDetails.length,
+      markCount: markRows.length,
+      averageMarks,
+      latestMark,
+    };
+  }, [activeParentStudentFeeDetails, activeParentStudentMarkDetails]);
+
+  const filteredParentStudents = useMemo(() => {
+    const query = parentStudentSearch.trim().toLowerCase();
+    if (!query) {
+      return parentLinkedStudents;
+    }
+
+    return parentLinkedStudents.filter((student) => {
+      const searchText = [
+        student.name,
+        student.admissionno ?? '',
+        student.className,
+        student.section,
+        student.teacherName ?? '',
+        student.primaryGuardianName ?? '',
+      ]
+        .join(' ')
+        .toLowerCase();
+      return searchText.includes(query);
+    });
+  }, [parentLinkedStudents, parentStudentSearch]);
+
+  const parentTotals = useMemo(() => {
+    const totalFees = parentLinkedStudents.reduce((sum, student) => sum + student.totalFees, 0);
+    const totalPaid = parentLinkedStudents.reduce((sum, student) => sum + student.paidFees, 0);
+    const totalRemaining = parentLinkedStudents.reduce((sum, student) => sum + student.remainingFees, 0);
+    const avgMarks = parentLinkedStudents.length
+      ? Math.round(parentLinkedStudents.reduce((sum, student) => sum + student.averageMarks, 0) / parentLinkedStudents.length)
+      : 0;
+    const attendanceStudents = parentLinkedStudents.filter((student) => student.attendancePercent !== null);
+    const attendancePercent = attendanceStudents.length
+      ? Math.round(attendanceStudents.reduce((sum, student) => sum + (student.attendancePercent ?? 0), 0) / attendanceStudents.length)
+      : 0;
+    const classCount = new Set(parentLinkedStudents.map((student) => `${student.className}-${student.section}`)).size;
+
+    return {
+      totalFees,
+      totalPaid,
+      totalRemaining,
+      avgMarks,
+      attendancePercent,
+      classCount,
+    };
+  }, [parentLinkedStudents]);
+
+  useEffect(() => {
+    if (user.role !== 'PARENT') {
+      return;
+    }
+
+    if (!parentLinkedStudents.length) {
+      setActiveParentStudentId(null);
+      return;
+    }
+
+    setActiveParentStudentId((current) => {
+      if (current && parentLinkedStudents.some((student) => student.id === current)) {
+        return current;
+      }
+      return parentLinkedStudents[0]?.id ?? null;
+    });
+  }, [parentLinkedStudents, user.role]);
+
+  useEffect(() => {
+    if (user.role !== 'PARENT' || !activeParentStudentRow) {
+      return;
+    }
+
+    if (studentProfiles[activeParentStudentRow.id]) {
+      return;
+    }
+
+    let cancelled = false;
+    setParentDetailLoading(true);
+    loadStudentProfile(activeParentStudentRow.id).finally(() => {
+      if (!cancelled) {
+        setParentDetailLoading(false);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeParentStudentRow, loadStudentProfile, studentProfiles, user.role]);
 
   const existingMarksByStudent = useMemo(() => {
     const map = new Map<number, number>();
@@ -2363,6 +3697,627 @@ function Dashboard({ user, token, onLogout }: { user: User; token: string; onLog
     } finally {
       setMarksSaving(false);
     }
+  };
+
+  const renderParentDashboard = () => {
+    const selectedStudent = activeParentStudentRow;
+    const selectedDetail = activeParentStudentDetail;
+    const selectedClass = activeParentStudentClass;
+    const attendancePercent = selectedStudent?.attendancePercent ?? null;
+    const selectedGuardian = selectedStudent?.primaryGuardianName ?? selectedDetail?.parents?.[0]?.parent?.name ?? 'N/A';
+
+    return (
+      <section className="parent-dashboard-shell">
+        <header className="parent-dashboard-hero">
+          <div className="parent-dashboard-hero-copy">
+            <p className="section-eyebrow">Parent portal</p>
+            <h2>Everything your family needs, in one calm dashboard.</h2>
+            <p className="parent-dashboard-subtitle">
+              Start with the children linked to your account, then open any profile to see identity, academics, fees, and
+              guardian details pulled straight from the backend.
+            </p>
+            <div className="parent-dashboard-chip-row">
+              <span>
+                <LuUsers />
+                {parentTotals.classCount} class{parentTotals.classCount === 1 ? '' : 'es'}
+              </span>
+              <span>
+                <LuCircleDollarSign />
+                {formatInr(parentTotals.totalRemaining)} due
+              </span>
+              <span>
+                <LuGauge />
+                {parentTotals.avgMarks}% avg marks
+              </span>
+            </div>
+          </div>
+
+          <div className="parent-dashboard-hero-card">
+            <div className="parent-dashboard-hero-card-top">
+              <div className="parent-dashboard-hero-user">
+                <div className="parent-dashboard-avatar">
+                  <span>{user.name.charAt(0).toUpperCase()}</span>
+                </div>
+                <div>
+                  <p className="parent-dashboard-card-label">Parent account</p>
+                  <h3>{user.name}</h3>
+                  <p>{user.email}</p>
+                </div>
+              </div>
+
+              <button type="button" className="parent-dashboard-logout-btn" onClick={onLogout}>
+                <LuLogOut />
+                Logout
+              </button>
+            </div>
+            <div className="parent-dashboard-hero-metrics">
+              <div>
+                <span>Children</span>
+                <strong>{parentLinkedStudents.length}</strong>
+              </div>
+              <div>
+                <span>Total paid</span>
+                <strong>{formatInr(parentTotals.totalPaid)}</strong>
+              </div>
+              <div>
+                <span>Attendance</span>
+                <strong>{parentTotals.attendancePercent}%</strong>
+              </div>
+            </div>
+            <div className="parent-dashboard-hero-footer">
+              <div>
+                <span>Family snapshot</span>
+                <strong>{parentLinkedStudents.length} linked student{parentLinkedStudents.length === 1 ? '' : 's'}</strong>
+              </div>
+              <div>
+                <span>Classes</span>
+                <strong>{parentTotals.classCount}</strong>
+              </div>
+              <div>
+                <span>Balance</span>
+                <strong>{formatInr(parentTotals.totalRemaining)}</strong>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <section className="parent-dashboard-grid">
+          <aside className="parent-student-rail">
+            <div className="parent-student-rail-head">
+              <div>
+                <p className="section-eyebrow">Linked students</p>
+                <h3>{filteredParentStudents.length} record{filteredParentStudents.length === 1 ? '' : 's'}</h3>
+              </div>
+              <label className="parent-rail-search">
+                <LuSearch />
+                <input
+                  type="text"
+                  placeholder="Search child, class, admission no..."
+                  value={parentStudentSearch}
+                  onChange={(event) => setParentStudentSearch(event.target.value)}
+                />
+              </label>
+            </div>
+
+            <div className="parent-student-list">
+              {parentDashboardLoading ? (
+                <div className="class-loader-wrap parent-dashboard-loader">
+                  <div className="class-loader" role="status" aria-live="polite">
+                    <span className="loader-ring outer" />
+                    <span className="loader-ring inner" />
+                    <img src={logo} alt="IDPS logo loading" />
+                  </div>
+                  <p>Loading your family dashboard...</p>
+                </div>
+              ) : filteredParentStudents.length === 0 ? (
+                <div className="parent-empty-state">
+                  <LuUserRoundCheck />
+                  <h4>No linked students yet</h4>
+                  <p>Once the school connects a child to your parent account, their record will appear here automatically.</p>
+                </div>
+              ) : (
+                filteredParentStudents.map((student) => {
+                  const isActive = student.id === selectedStudent?.id;
+                  return (
+                    <button
+                      key={student.id}
+                      type="button"
+                      className={isActive ? 'parent-student-card active' : 'parent-student-card'}
+                      onClick={() => setActiveParentStudentId(student.id)}
+                    >
+                      <div className="parent-student-card-head">
+                        <div className="parent-student-avatar">
+                          {student.name.trim().charAt(0).toUpperCase()}
+                        </div>
+                        <div className="parent-student-card-copy">
+                          <h4>{student.name}</h4>
+                          <p>
+                            {student.className} - {student.section}
+                          </p>
+                        </div>
+                        <LuChevronRight />
+                      </div>
+
+                      <div className="parent-student-card-chips">
+                        <span>{student.admissionno ?? 'Admission N/A'}</span>
+                        <span>{student.gender ?? 'N/A'}</span>
+                      </div>
+
+                      <div className="parent-student-card-metrics">
+                        <div>
+                          <span>Fees due</span>
+                          <strong>{formatInr(student.remainingFees)}</strong>
+                        </div>
+                        <div>
+                          <span>Marks</span>
+                          <strong>{student.averageMarks}%</strong>
+                        </div>
+                        <div>
+                          <span>Attendance</span>
+                          <strong>{student.attendancePercent ?? 0}%</strong>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </aside>
+
+          <section className="parent-student-workspace">
+            {!selectedStudent ? (
+              <div className="parent-empty-state parent-empty-state-large">
+                <LuBookOpen />
+                <h4>Select a child to continue</h4>
+                <p>We will open their complete academic profile, fees, attendance, and parent-linked details here.</p>
+              </div>
+            ) : (
+              <>
+                <header className="parent-student-hero">
+                  <div className="parent-student-hero-left">
+                    <div className="parent-student-hero-avatar">
+                      <span>{selectedStudent.name.trim().charAt(0).toUpperCase()}</span>
+                    </div>
+                    <div>
+                      <p className="section-eyebrow">Student overview</p>
+                      <h3>{selectedStudent.name}</h3>
+                      <p>
+                        Admission no. {selectedStudent.admissionno ?? 'N/A'} · {selectedStudent.className} - {selectedStudent.section}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="parent-student-hero-actions">
+                    <span className="parent-status-pill">
+                      <LuUserRoundCheck />
+                      Linked to {selectedGuardian}
+                    </span>
+                    <span className="parent-status-pill soft">
+                      <LuCalendarRange />
+                      {selectedDetail?.dob ? formatDisplayDate(selectedDetail.dob) : formatDisplayDate(selectedStudent.dob)}
+                    </span>
+                  </div>
+                </header>
+
+                <div className="parent-student-stat-grid">
+                  <article className="parent-stat-card">
+                    <span>Total fees</span>
+                    <strong>{formatInr(activeParentStudentSummary.feeTotal)}</strong>
+                  </article>
+                  <article className="parent-stat-card">
+                    <span>Paid</span>
+                    <strong>{formatInr(activeParentStudentSummary.feePaid)}</strong>
+                  </article>
+                  <article className="parent-stat-card">
+                    <span>Balance</span>
+                    <strong>{formatInr(activeParentStudentSummary.feeRemaining)}</strong>
+                  </article>
+                  <article className="parent-stat-card">
+                    <span>Marks average</span>
+                    <strong>{activeParentStudentSummary.averageMarks}%</strong>
+                  </article>
+                  <article className="parent-stat-card">
+                    <span>Attendance</span>
+                    <strong>{attendancePercent === null ? 'N/A' : `${attendancePercent}%`}</strong>
+                  </article>
+                </div>
+
+                {parentDetailLoading && !selectedDetail ? (
+                  <div className="parent-detail-loading">
+                    <div className="class-loader" role="status" aria-live="polite">
+                      <span className="loader-ring outer" />
+                      <span className="loader-ring inner" />
+                      <img src={logo} alt="IDPS logo loading" />
+                    </div>
+                    <p>Loading complete student record...</p>
+                  </div>
+                ) : null}
+
+                <div className="parent-student-detail-grid">
+                  <article className="parent-detail-card parent-detail-card-wide">
+                    <header>
+                      <div>
+                        <p className="section-eyebrow">Identity</p>
+                        <h4>Student details</h4>
+                      </div>
+                      <LuBookCopy />
+                    </header>
+                    <div className="parent-detail-specs">
+                      <div>
+                        <span>Name</span>
+                        <strong>{selectedDetail?.name ?? selectedStudent.name}</strong>
+                      </div>
+                      <div>
+                        <span>Admission no</span>
+                        <strong>{selectedDetail?.admissionno ?? selectedStudent.admissionno ?? 'N/A'}</strong>
+                      </div>
+                      <div>
+                        <span>Gender</span>
+                        <strong>{selectedDetail?.gender ?? selectedStudent.gender ?? 'N/A'}</strong>
+                      </div>
+                      <div>
+                        <span>DOB</span>
+                        <strong>{formatDisplayDate(selectedDetail?.dob ?? selectedStudent.dob)}</strong>
+                      </div>
+                      <div>
+                        <span>Age</span>
+                        <strong>{formatAgeFromDob(selectedDetail?.dob ?? selectedStudent.dob)}</strong>
+                      </div>
+                      <div>
+                        <span>Aadhaar</span>
+                        <strong>{selectedDetail?.adharnumber ?? 'N/A'}</strong>
+                      </div>
+                      <div>
+                        <span>Blood group</span>
+                        <strong>{selectedDetail?.bloodgroup ?? 'N/A'}</strong>
+                      </div>
+                      <div>
+                        <span>Mother tongue</span>
+                        <strong>{selectedDetail?.mothertongue ?? 'N/A'}</strong>
+                      </div>
+                      <div>
+                        <span>Category</span>
+                        <strong>{selectedDetail?.socialcategory ?? 'N/A'}</strong>
+                      </div>
+                      <div>
+                        <span>Height</span>
+                        <strong>{selectedDetail?.height ? `${selectedDetail.height} cm` : 'N/A'}</strong>
+                      </div>
+                      <div>
+                        <span>Weight</span>
+                        <strong>{selectedDetail?.weight ? `${selectedDetail.weight} kg` : 'N/A'}</strong>
+                      </div>
+                      <div className="parent-detail-span">
+                        <span>Address</span>
+                        <strong>{selectedDetail?.address ?? 'N/A'}</strong>
+                      </div>
+                      <div>
+                        <span>Pincode</span>
+                        <strong>{selectedDetail?.pincode ?? 'N/A'}</strong>
+                      </div>
+                    </div>
+                  </article>
+
+                  <article className="parent-detail-card parent-detail-card-wide">
+                    <header>
+                      <div>
+                        <p className="section-eyebrow">Academics</p>
+                        <h4>Class and school context</h4>
+                      </div>
+                      <LuGraduationCap />
+                    </header>
+                    <div className="parent-detail-specs">
+                      <div>
+                        <span>Class</span>
+                        <strong>
+                          {selectedClass ? `${selectedClass.name} - ${selectedClass.section}` : `${selectedStudent.className} - ${selectedStudent.section}`}
+                        </strong>
+                      </div>
+                      <div>
+                        <span>Class teacher</span>
+                        <strong>{selectedClass?.teacher?.name ?? selectedStudent.teacherName ?? 'N/A'}</strong>
+                      </div>
+                      <div>
+                        <span>Teacher email</span>
+                        <strong>{selectedClass?.teacher?.user?.email ?? selectedStudent.teacherEmail ?? 'N/A'}</strong>
+                      </div>
+                      <div>
+                        <span>Admission date</span>
+                        <strong>{formatDisplayDate(selectedDetail?.admissiondate)}</strong>
+                      </div>
+                      <div>
+                        <span>Created</span>
+                        <strong>{formatDisplayDate(selectedDetail?.createdAt)}</strong>
+                      </div>
+                      <div>
+                        <span>Updated</span>
+                        <strong>{formatDisplayDate(selectedDetail?.updatedAt)}</strong>
+                      </div>
+                    </div>
+                  </article>
+
+                  <article className="parent-detail-card parent-detail-card-wide">
+                    <header>
+                      <div>
+                        <p className="section-eyebrow">Guardians</p>
+                        <h4>Parent information</h4>
+                      </div>
+                      <LuUsers />
+                    </header>
+                    <div
+                      className={
+                        activeParentStudentGuardianProfiles.length >= 2
+                          ? 'parent-guardian-stack two-up'
+                          : 'parent-guardian-stack'
+                      }
+                    >
+                      {activeParentStudentGuardianProfiles.length === 0 ? (
+                        <p className="parent-empty-copy">No guardian details returned by the backend yet.</p>
+                      ) : (
+                        activeParentStudentGuardianProfiles.map((guardian) => (
+                          <article key={guardian.id} className="parent-guardian-card">
+                            <div className="parent-guardian-head">
+                              <div>
+                                <strong>{guardian.name}</strong>
+                                <p>
+                                  {guardian.relation ?? 'Relation N/A'}
+                                  {guardian.type ? ` · ${guardian.type}` : ''}
+                                </p>
+                              </div>
+                              <span>{guardian.type ?? 'N/A'}</span>
+                            </div>
+                            <div className="parent-detail-specs parent-detail-specs-compact">
+                              <div>
+                                <span>Phone 1</span>
+                                <strong>{guardian.phone1 ?? 'N/A'}</strong>
+                              </div>
+                              <div>
+                                <span>Phone 2</span>
+                                <strong>{guardian.phone2 ?? 'N/A'}</strong>
+                              </div>
+                              <div>
+                                <span>Email</span>
+                                <strong>{guardian.user?.email ?? 'N/A'}</strong>
+                              </div>
+                              <div>
+                                <span>Gender</span>
+                                <strong>{guardian.user?.gender ?? 'N/A'}</strong>
+                              </div>
+                              <div>
+                                <span>Aadhaar</span>
+                                <strong>{guardian.adharnumber ?? 'N/A'}</strong>
+                              </div>
+                              <div>
+                                <span>Qualification</span>
+                                <strong>{guardian.qualification ?? 'N/A'}</strong>
+                              </div>
+                            </div>
+                          </article>
+                        ))
+                      )}
+                    </div>
+                  </article>
+
+                  <article className="parent-detail-card parent-detail-card-wide">
+                    <header>
+                      <div>
+                        <p className="section-eyebrow">Fees</p>
+                        <h4>Fee ledger</h4>
+                      </div>
+                      <LuCircleDollarSign />
+                    </header>
+                    <div className="parent-fee-summary">
+                      <div>
+                        <span>Total</span>
+                        <strong>{formatInr(activeParentStudentSummary.feeTotal)}</strong>
+                      </div>
+                      <div>
+                        <span>Paid</span>
+                        <strong>{formatInr(activeParentStudentSummary.feePaid)}</strong>
+                      </div>
+                      <div>
+                        <span>Remaining</span>
+                        <strong>{formatInr(activeParentStudentSummary.feeRemaining)}</strong>
+                      </div>
+                      <div>
+                        <span>Records</span>
+                        <strong>{activeParentStudentSummary.feeCount}</strong>
+                      </div>
+                    </div>
+
+                    <div className="parent-ledger-list">
+                      {activeParentStudentFeeDetails.length === 0 ? (
+                        <p className="parent-empty-copy">No fee records returned for this student.</p>
+                      ) : (
+                        activeParentStudentFeeDetails.map((fee) => {
+                          const feePayments = fee.payments ?? [];
+                          const feePaid = fee.totalPaid ?? feePayments.filter((payment) => payment.status === 'SUCCESS').reduce((sum, payment) => sum + Number(payment.amount ?? 0), 0);
+                          const feeRemaining = fee.remaining ?? Math.max(Number(fee.total ?? 0) - Number(feePaid), 0);
+                          return (
+                            <article key={fee.id} className="parent-ledger-card">
+                              <div className="parent-ledger-head">
+                                <div>
+                                  <strong>{fee.type}</strong>
+                                  <p>{fee.academicYear}</p>
+                                </div>
+                                <span>{formatInr(Number(fee.total ?? 0))}</span>
+                              </div>
+                              <div className="parent-ledger-meta">
+                                <span>Paid {formatInr(Number(feePaid))}</span>
+                                <span>Remaining {formatInr(Number(feeRemaining))}</span>
+                                <span>{feePayments.length} payment{feePayments.length === 1 ? '' : 's'}</span>
+                              </div>
+                              <div className="parent-ledger-payments">
+                                {feePayments.length === 0 ? (
+                                  <p className="parent-empty-copy">No payments recorded yet.</p>
+                                ) : (
+                                  feePayments.slice(0, 3).map((payment) => (
+                                    <div key={payment.id} className="parent-ledger-payment">
+                                      <strong>{formatInr(Number(payment.amount ?? 0))}</strong>
+                                      <span>{payment.method}</span>
+                                      <span>{payment.status}</span>
+                                    </div>
+                                  ))
+                                )}
+                              </div>
+                            </article>
+                          );
+                        })
+                      )}
+                    </div>
+                  </article>
+
+                  <article className="parent-detail-card parent-detail-card-wide">
+                    <header>
+                      <div>
+                        <p className="section-eyebrow">Results</p>
+                        <h4>Exam snapshot</h4>
+                      </div>
+                      <LuGauge />
+                    </header>
+                    <div className="parent-performance-summary">
+                      <div>
+                        <span>Average</span>
+                        <strong>{activeParentStudentSummary.averageMarks}%</strong>
+                      </div>
+                      <div>
+                        <span>Latest exam</span>
+                        <strong>{activeParentStudentSummary.latestMark?.examName ?? 'N/A'}</strong>
+                      </div>
+                      <div>
+                        <span>Latest score</span>
+                        <strong>
+                          {activeParentStudentSummary.latestMark
+                            ? `${activeParentStudentSummary.latestMark.marks} / ${activeParentStudentSummary.latestMark.exam?.totalMarks ?? 'N/A'}`
+                            : 'N/A'}
+                        </strong>
+                      </div>
+                      <div>
+                        <span>Exams</span>
+                        <strong>{activeParentStudentSummary.markCount}</strong>
+                      </div>
+                    </div>
+                    <div className="parent-marks-list">
+                      {activeParentStudentMarkDetails.length === 0 ? (
+                        <p className="parent-empty-copy">No marks records returned for this student.</p>
+                      ) : (
+                        activeParentStudentMarkDetails
+                          .slice()
+                          .sort((a, b) => {
+                            const aDate = a.exam?.examDate ? new Date(a.exam.examDate).getTime() : 0;
+                            const bDate = b.exam?.examDate ? new Date(b.exam.examDate).getTime() : 0;
+                            return bDate - aDate;
+                          })
+                          .map((mark) => {
+                            const exam = mark.exam ?? null;
+                            const totalMarks = Number(exam?.totalMarks ?? 0);
+                            const percent = totalMarks ? Math.min(Math.round((Number(mark.marks ?? 0) / totalMarks) * 100), 100) : 0;
+                            return (
+                              <article key={mark.id} className="parent-mark-card">
+                                <div className="parent-mark-head">
+                                  <div>
+                                    <strong>{exam?.name ?? `Exam ${mark.examId}`}</strong>
+                                    <p>{exam?.subject?.name ?? 'Subject'}</p>
+                                  </div>
+                                  <span>{percent}%</span>
+                                </div>
+                                <div className="parent-mark-track">
+                                  <span style={{ width: `${Math.max(percent, 6)}%` }} />
+                                </div>
+                                <div className="parent-mark-meta">
+                                  <span>{mark.marks} scored</span>
+                                  <span>{totalMarks || 'N/A'} total</span>
+                                  <span>{formatDisplayDate(exam?.examDate)}</span>
+                                </div>
+                              </article>
+                            );
+                          })
+                      )}
+                    </div>
+                  </article>
+
+                  <article className="parent-detail-card parent-detail-card-wide">
+                    <header>
+                      <div>
+                        <p className="section-eyebrow">Attendance</p>
+                        <h4>Presence overview</h4>
+                      </div>
+                      <LuClock3 />
+                    </header>
+                    <div className="parent-attendance-layout">
+                      <div className="parent-attendance-ring">
+                        <svg viewBox="0 0 220 220" role="img" aria-label="Attendance summary">
+                          <circle cx="110" cy="110" r="82" className="status-donut-base" />
+                          <circle cx="110" cy="110" r="82" className="status-donut-zero-ring" />
+                          <circle cx="110" cy="110" r="54" fill="#fff" />
+                          <text x="110" y="104" textAnchor="middle" className="status-donut-value">
+                            {attendancePercent === null ? 0 : attendancePercent}%
+                          </text>
+                          <text x="110" y="124" textAnchor="middle" className="status-donut-sub">
+                            attendance
+                          </text>
+                        </svg>
+                      </div>
+                      <div className="parent-attendance-copy">
+                        <div className="parent-attendance-grid">
+                          <div>
+                            <span>Present</span>
+                            <strong>{selectedStudent.attendancePresent}</strong>
+                          </div>
+                          <div>
+                            <span>Absent</span>
+                            <strong>{selectedStudent.attendanceAbsent}</strong>
+                          </div>
+                          <div>
+                            <span>Total</span>
+                            <strong>{selectedStudent.attendanceTotal}</strong>
+                          </div>
+                          <div>
+                            <span>Class teacher</span>
+                            <strong>{selectedStudent.teacherName ?? 'N/A'}</strong>
+                          </div>
+                        </div>
+                        <p>
+                          Attendance is computed from the class attendance sessions the backend already returns. If the school
+                          adds new sessions, this dashboard updates automatically on the next load.
+                        </p>
+                      </div>
+                    </div>
+                  </article>
+
+                  <article className="parent-detail-card parent-detail-card-wide">
+                    <header>
+                      <div>
+                        <p className="section-eyebrow">Record summary</p>
+                        <h4>Extra context</h4>
+                      </div>
+                      <LuShieldCheck />
+                    </header>
+                    <div className="parent-detail-specs parent-detail-specs-compact">
+                      <div>
+                        <span>Primary guardian</span>
+                        <strong>{selectedStudent.primaryGuardianName ?? 'N/A'}</strong>
+                      </div>
+                      <div>
+                        <span>Guardians linked</span>
+                        <strong>{selectedStudent.guardianCount}</strong>
+                      </div>
+                      <div>
+                        <span>Last updated</span>
+                        <strong>{formatDisplayDate(selectedDetail?.updatedAt)}</strong>
+                      </div>
+                      <div>
+                        <span>Detail loaded</span>
+                        <strong>{selectedDetail ? 'Yes' : 'No'}</strong>
+                      </div>
+                    </div>
+                  </article>
+                </div>
+              </>
+            )}
+          </section>
+        </section>
+      </section>
+    );
   };
 
   const renderMarksModule = () => (
@@ -4462,9 +6417,93 @@ function Dashboard({ user, token, onLogout }: { user: User; token: string; onLog
     }
   };
 
+  const studentImportValidRows = useMemo(() => studentImportRows.filter((row) => row.valid), [studentImportRows]);
+  const studentImportInvalidRows = useMemo(() => studentImportRows.filter((row) => !row.valid), [studentImportRows]);
+  const studentImportPreviewRows = useMemo(() => studentImportRows, [studentImportRows]);
+  const studentImportSummary = useMemo(() => {
+    const validRows = studentImportValidRows;
+    const invalidRows = studentImportInvalidRows;
+    const fatherKeys = new Set<string>();
+    const motherKeys = new Set<string>();
+    let fatherCount = 0;
+    let motherCount = 0;
+    let reusedParents = 0;
+
+    for (const row of validRows) {
+      const father = row.parents.father;
+      if (father.name || father.phone || father.aadhar) {
+        fatherCount += 1;
+        const key = buildParentImportKey(father, 'FATHER');
+        if (!fatherKeys.has(key)) {
+          fatherKeys.add(key);
+          const matched = parents.some((parent) => {
+            const parentKey =
+              (parent.type === 'FATHER'
+                ? 'FATHER'
+                : parent.type === 'MOTHER'
+                  ? 'MOTHER'
+                  : normalizeImportText(parent.relation).toUpperCase()) || 'GUARDIAN';
+            const normalizedAadhar = normalizeImportDigits(parent.adharnumber);
+            const normalizedPhone = normalizeImportDigits(parent.phone1);
+            const importAadhar = normalizeImportDigits(father.aadhar);
+            const importPhone = normalizeImportDigits(father.phone);
+            const importName = normalizeImportText(father.name).toLowerCase();
+            const parentName = normalizeImportText(parent.name).toLowerCase();
+            return (
+              parentKey === 'FATHER' &&
+              ((importAadhar && normalizedAadhar === importAadhar) ||
+                (!importAadhar && importPhone && normalizedPhone === importPhone) ||
+                (!importAadhar && !importPhone && importName && parentName === importName))
+            );
+          });
+          if (matched) reusedParents += 1;
+        }
+      }
+
+      const mother = row.parents.mother;
+      if (mother.name || mother.phone || mother.aadhar) {
+        motherCount += 1;
+        const key = buildParentImportKey(mother, 'MOTHER');
+        if (!motherKeys.has(key)) {
+          motherKeys.add(key);
+          const matched = parents.some((parent) => {
+            const parentKey =
+              (parent.type === 'MOTHER'
+                ? 'MOTHER'
+                : parent.type === 'FATHER'
+                  ? 'FATHER'
+                  : normalizeImportText(parent.relation).toUpperCase()) || 'GUARDIAN';
+            const normalizedAadhar = normalizeImportDigits(parent.adharnumber);
+            const normalizedPhone = normalizeImportDigits(parent.phone1);
+            const importAadhar = normalizeImportDigits(mother.aadhar);
+            const importPhone = normalizeImportDigits(mother.phone);
+            const importName = normalizeImportText(mother.name).toLowerCase();
+            const parentName = normalizeImportText(parent.name).toLowerCase();
+            return (
+              parentKey === 'MOTHER' &&
+              ((importAadhar && normalizedAadhar === importAadhar) ||
+                (!importAadhar && importPhone && normalizedPhone === importPhone) ||
+                (!importAadhar && !importPhone && importName && parentName === importName))
+            );
+          });
+          if (matched) reusedParents += 1;
+        }
+      }
+    }
+
+    return {
+      totalRows: studentImportRows.length,
+      studentsToCreate: validRows.length,
+      motherCount,
+      fatherCount,
+      reusedParents,
+      skippedRows: invalidRows.length,
+    };
+  }, [parents, studentImportInvalidRows, studentImportRows.length, studentImportValidRows]);
+
   return (
     <main className="dashboard-page">
-      {user.role !== 'PRINCIPAL' ? (
+      {user.role !== 'PRINCIPAL' && user.role !== 'PARENT' ? (
         <header className="dashboard-header">
           <div className="nav-brand">
             <img src={logo} alt="IDPS Logo" className="nav-logo" />
@@ -4517,14 +6556,695 @@ function Dashboard({ user, token, onLogout }: { user: User; token: string; onLog
           </aside>
 
           <section className="principal-board">
-            {activePrincipalMenu === 'Dashboard' ? (
+            {activePrincipalMenu === 'Import Data' ? (
+              <article className="panel module-panel import-module">
+                <div className="import-header">
+                  <div>
+                    <p className="section-eyebrow">Bulk import</p>
+                    <h3>Students Data Import</h3>
+                    <p className="student-subtitle">Upload a CSV, validate the rows, and create students plus parent links in one pass.</p>
+                  </div>
+                  <div className="import-header-badge">
+                    <LuUpload />
+                    CSV import
+                  </div>
+                </div>
+
+                <div className="import-toolbar">
+                  <label className="import-file-button">
+                    <input type="file" accept=".csv,text/csv" onChange={handleStudentImportFileInput} />
+                    <span>{studentImportFileName || 'Choose CSV file'}</span>
+                  </label>
+                  <label className="import-input-group">
+                    <span>Class</span>
+                    <select
+                      value={studentImportClassId}
+                      onChange={(event) => setStudentImportClassId(event.target.value)}
+                    >
+                      <option value="">Apply to all rows</option>
+                      {classes.map((cls) => (
+                        <option key={cls.id} value={cls.id}>
+                          {cls.name}-{cls.section}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button
+                    type="button"
+                    className="import-action import-action-primary"
+                    onClick={handleStudentImportSubmit}
+                    disabled={studentImportParsing || studentImportImporting || !studentImportRows.length || !studentImportValidRows.length}
+                  >
+                    {studentImportImporting ? 'Importing...' : 'Review & Confirm'}
+                  </button>
+                  <button
+                    type="button"
+                    className="import-action import-action-secondary"
+                    onClick={handleStudentImportReset}
+                  >
+                    Reset
+                  </button>
+                </div>
+
+                <div className="import-summary-grid">
+                  <div className="import-summary-card">
+                    <span>Total Rows</span>
+                    <strong>{studentImportSummary.totalRows}</strong>
+                  </div>
+                  <div className="import-summary-card success">
+                    <span>Students</span>
+                    <strong>{studentImportSummary.studentsToCreate}</strong>
+                  </div>
+                  <div className="import-summary-card warning">
+                    <span>Skipped</span>
+                    <strong>{studentImportSummary.skippedRows}</strong>
+                  </div>
+                  <div className="import-summary-card">
+                    <span>Class</span>
+                    <strong>{studentImportClassId ? classes.find((cls) => String(cls.id) === studentImportClassId)?.name ?? '—' : '—'}</strong>
+                  </div>
+                  <div className="import-summary-card success">
+                    <span>Mothers</span>
+                    <strong>{studentImportSummary.motherCount}</strong>
+                  </div>
+                  <div className="import-summary-card success">
+                    <span>Fathers</span>
+                    <strong>{studentImportSummary.fatherCount}</strong>
+                  </div>
+                  <div className="import-summary-card warning">
+                    <span>Reusable Parents</span>
+                    <strong>{studentImportSummary.reusedParents}</strong>
+                  </div>
+                  <div className="import-summary-card">
+                    <span>Invalid Rows</span>
+                    <strong>{studentImportSummary.skippedRows}</strong>
+                  </div>
+                </div>
+
+                {studentImportParsing ? (
+                  <div className="import-state">Reading and validating CSV rows...</div>
+                ) : null}
+
+                {studentImportResult ? (
+                  <div className="import-result-banner">
+                    <div>
+                      <p>Import completed for {studentImportResult.className || `Class ${studentImportResult.classId ?? ''}`}</p>
+                      <strong>
+                        {studentImportResult.createdStudents} student(s) created, {studentImportResult.createdParents} parent record(s) created
+                      </strong>
+                    </div>
+                    <div className="import-result-meta">
+                      <span>Mothers: {studentImportResult.createdMothers}</span>
+                      <span>Fathers: {studentImportResult.createdFathers}</span>
+                      <span>Linked: {studentImportResult.linkedParents}</span>
+                      <span>Relations: {studentImportResult.linkedRelations}</span>
+                      <span>Reused: {studentImportResult.reusedParents}</span>
+                      <span>Skipped: {studentImportResult.skippedRows}</span>
+                    </div>
+                  </div>
+                ) : null}
+
+                <div className="import-grid">
+                  <section className="import-card import-card-wide">
+                    <div className="import-card-head">
+                      <div>
+                        <h4>Preview Table</h4>
+                        <span>{studentImportPreviewRows.length} parsed row(s)</span>
+                      </div>
+                      <span>{studentImportPreviewRows.length} row(s)</span>
+                    </div>
+                    <div className="import-table-scroll">
+                      <table className="import-table">
+                        <thead>
+                          <tr>
+                            <th>#</th>
+                            <th>Admission No</th>
+                            <th>Student</th>
+                            <th>Gender</th>
+                            <th>DOB</th>
+                            <th>Parents</th>
+                            <th>Status</th>
+                            <th>Reason</th>
+                            <th>Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {studentImportPreviewRows.length ? (
+                            studentImportPreviewRows.map((row, index) => (
+                              <tr key={row.rowNumber} className={row.valid ? 'row-valid' : 'row-invalid'}>
+                                <td>{row.rowNumber}</td>
+                                <td>{row.admissionno}</td>
+                                <td>
+                                  <strong>{row.name || '—'}</strong>
+                                </td>
+                                <td>{row.gender || '—'}</td>
+                                <td>{row.dob || '—'}</td>
+                                <td>
+                                  <div className="import-parent-stack">
+                                    <span>F: {row.parents.father.name || '—'}</span>
+                                    <span>M: {row.parents.mother.name || '—'}</span>
+                                  </div>
+                                </td>
+                                <td>
+                                  <span className={row.valid ? 'import-status success' : 'import-status danger'}>
+                                    {row.valid ? 'Ready' : 'Review'}
+                                  </span>
+                                </td>
+                                <td className="import-error-cell">
+                                  {row.errors.length ? row.errors.join(' • ') : '—'}
+                                </td>
+                                <td>
+                                  <button type="button" className="import-row-edit-btn" onClick={() => openStudentImportRowEditor(row, index)}>
+                                    <LuPencil />
+                                    Edit
+                                  </button>
+                                </td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan={9}>
+                                <div className="import-empty">
+                                  Upload a CSV file to see the parsed rows here.
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </section>
+
+                  <section className="import-card import-card-side">
+                    <div className="import-card-head">
+                      <div>
+                        <h4>Validation</h4>
+                        <span>Rows ready for bulk insert</span>
+                      </div>
+                      <span>{studentImportValidRows.length}</span>
+                    </div>
+
+                    <div className="import-validation-stack">
+                      <div className="import-validation-pill success">
+                        <LuCircleCheck />
+                        <div>
+                          <strong>{studentImportValidRows.length}</strong>
+                          <span>Valid rows</span>
+                        </div>
+                      </div>
+                      <div className="import-validation-pill warning">
+                        <LuCircleAlert />
+                        <div>
+                          <strong>{studentImportInvalidRows.length}</strong>
+                          <span>Rows to fix</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="import-note">
+                      Students, parents, and parent-student links are created inside transactional batches, so a bad row will not break the entire import.
+                    </div>
+
+                    <button
+                      type="button"
+                      className="import-link-button"
+                      onClick={downloadStudentImportErrors}
+                      disabled={!studentImportInvalidRows.length}
+                    >
+                      <LuDownload />
+                      Download error report
+                    </button>
+
+                    <div className="import-error-panel">
+                      <div className="import-card-head compact">
+                        <div>
+                          <h4>Validation errors</h4>
+                          <span>First few issues</span>
+                        </div>
+                      </div>
+                      {studentImportInvalidRows.length ? (
+                        <ul className="import-error-list">
+                          {studentImportInvalidRows.slice(0, 6).map((row) => (
+                            <li key={row.rowNumber}>
+                              <strong>Row {row.rowNumber}</strong>
+                              <span>{row.errors.join(' • ')}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <div className="import-empty small">No validation errors yet.</div>
+                      )}
+                    </div>
+                  </section>
+                </div>
+
+                {showStudentImportConfirm ? (
+                  <div
+                    className="import-modal-overlay"
+                    role="presentation"
+                    onClick={() => setShowStudentImportConfirm(false)}
+                  >
+                    <div className="import-modal import-confirm-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+                      <div className="import-modal-head">
+                        <div>
+                          <p className="section-eyebrow">Confirm import</p>
+                          <h4>Review the final counts before uploading</h4>
+                        </div>
+                        <button type="button" className="import-modal-close" onClick={() => setShowStudentImportConfirm(false)}>
+                          Close
+                        </button>
+                      </div>
+
+                      <div className="import-summary-grid confirm">
+                        <div className="import-summary-card">
+                          <span>Total Rows</span>
+                          <strong>{studentImportSummary.totalRows}</strong>
+                        </div>
+                        <div className="import-summary-card success">
+                          <span>Students to Create</span>
+                          <strong>{studentImportSummary.studentsToCreate}</strong>
+                        </div>
+                        <div className="import-summary-card success">
+                          <span>Mother Records</span>
+                          <strong>{studentImportSummary.motherCount}</strong>
+                        </div>
+                        <div className="import-summary-card success">
+                          <span>Father Records</span>
+                          <strong>{studentImportSummary.fatherCount}</strong>
+                        </div>
+                        <div className="import-summary-card warning">
+                          <span>Reused Parents</span>
+                          <strong>{studentImportSummary.reusedParents}</strong>
+                        </div>
+                        <div className="import-summary-card warning">
+                          <span>Skipped Rows</span>
+                          <strong>{studentImportSummary.skippedRows}</strong>
+                        </div>
+                      </div>
+
+                      <div className="import-note">
+                        Students and parents will be written in transactional batches. Invalid rows will stay skipped and can be exported with the error report.
+                      </div>
+
+                      <div className="import-modal-actions">
+                        <button type="button" className="import-action import-action-secondary" onClick={() => setShowStudentImportConfirm(false)}>
+                          Back to review
+                        </button>
+                        <button
+                          type="button"
+                          className="import-action import-action-primary"
+                          onClick={handleStudentImportConfirm}
+                          disabled={studentImportImporting}
+                        >
+                          Confirm & Import
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+
+                {studentImportEditForm ? (
+                  <div
+                    className="import-modal-overlay"
+                    role="presentation"
+                    onClick={() => {
+                      setStudentImportEditIndex(null);
+                      setStudentImportEditForm(null);
+                    }}
+                  >
+                    <div className="import-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+                      <div className="import-modal-head">
+                        <div>
+                          <p className="section-eyebrow">Edit Row</p>
+                          <h4>Update preview data before upload</h4>
+                        </div>
+                        <button
+                          type="button"
+                          className="import-modal-close"
+                          onClick={() => {
+                            setStudentImportEditIndex(null);
+                            setStudentImportEditForm(null);
+                          }}
+                        >
+                          Close
+                        </button>
+                      </div>
+
+                      <div className="import-modal-grid">
+                        <label>
+                          <span>Admission No</span>
+                          <input
+                            type="text"
+                            value={studentImportEditForm.admissionno}
+                            onChange={(event) =>
+                              setStudentImportEditForm((prev) => (prev ? { ...prev, admissionno: event.target.value } : prev))
+                            }
+                          />
+                        </label>
+                        <label>
+                          <span>Student Name</span>
+                          <input
+                            type="text"
+                            value={studentImportEditForm.name}
+                            onChange={(event) => setStudentImportEditForm((prev) => (prev ? { ...prev, name: event.target.value } : prev))}
+                          />
+                        </label>
+                        <label>
+                          <span>Gender</span>
+                          <select
+                            value={studentImportEditForm.gender}
+                            onChange={(event) =>
+                              setStudentImportEditForm((prev) => (prev ? { ...prev, gender: event.target.value as 'MALE' | 'FEMALE' | '' } : prev))
+                            }
+                          >
+                            <option value="">Select Gender</option>
+                            <option value="MALE">Male</option>
+                            <option value="FEMALE">Female</option>
+                          </select>
+                        </label>
+                        <label>
+                          <span>DOB</span>
+                          <input
+                            type="date"
+                            value={studentImportEditForm.dob}
+                            onChange={(event) => setStudentImportEditForm((prev) => (prev ? { ...prev, dob: event.target.value } : prev))}
+                          />
+                        </label>
+                        <label>
+                          <span>Aadhaar</span>
+                          <input
+                            type="text"
+                            value={studentImportEditForm.adharnumber}
+                            onChange={(event) =>
+                              setStudentImportEditForm((prev) =>
+                                prev ? { ...prev, adharnumber: normalizeImportDigits(event.target.value) } : prev,
+                              )
+                            }
+                          />
+                        </label>
+                        <label>
+                          <span>Pincode</span>
+                          <input
+                            type="text"
+                            value={studentImportEditForm.pincode}
+                            onChange={(event) =>
+                              setStudentImportEditForm((prev) =>
+                                prev ? { ...prev, pincode: normalizeImportDigits(event.target.value) } : prev,
+                              )
+                            }
+                          />
+                        </label>
+                        <label>
+                          <span>Mother Tongue</span>
+                          <select
+                            value={studentImportEditForm.mothertongue}
+                            onChange={(event) =>
+                              setStudentImportEditForm((prev) =>
+                                prev ? { ...prev, mothertongue: event.target.value as StudentImportPreviewRow['mothertongue'] } : prev,
+                              )
+                            }
+                          >
+                            <option value="">Select</option>
+                            <option value="TELUGU">Telugu</option>
+                            <option value="URGU">Urgu</option>
+                            <option value="ENGLISH">English</option>
+                          </select>
+                        </label>
+                        <label>
+                          <span>Social Category</span>
+                          <select
+                            value={studentImportEditForm.socialcategory}
+                            onChange={(event) =>
+                              setStudentImportEditForm((prev) =>
+                                prev ? { ...prev, socialcategory: event.target.value as StudentImportPreviewRow['socialcategory'] } : prev,
+                              )
+                            }
+                          >
+                            <option value="">Select</option>
+                            <option value="OC">OC</option>
+                            <option value="BC_A">BC-A</option>
+                            <option value="BC_B">BC-B</option>
+                            <option value="BC_C">BC-C</option>
+                            <option value="BC_D">BC-D</option>
+                            <option value="BC_E">BC-E</option>
+                            <option value="MBC_DNC">MBC-DNC</option>
+                            <option value="SC">SC</option>
+                            <option value="ST">ST</option>
+                          </select>
+                        </label>
+                        <label>
+                          <span>Blood Group</span>
+                          <select
+                            value={studentImportEditForm.bloodgroup}
+                            onChange={(event) =>
+                              setStudentImportEditForm((prev) =>
+                                prev ? { ...prev, bloodgroup: event.target.value as StudentImportPreviewRow['bloodgroup'] } : prev,
+                              )
+                            }
+                          >
+                            <option value="">Select</option>
+                            <option value="A_POS">A+</option>
+                            <option value="A_NEG">A-</option>
+                            <option value="B_POS">B+</option>
+                            <option value="B_NEG">B-</option>
+                            <option value="AB_POS">AB+</option>
+                            <option value="AB_NEG">AB-</option>
+                            <option value="O_POS">O+</option>
+                            <option value="O_NEG">O-</option>
+                          </select>
+                        </label>
+                        <label>
+                          <span>Admission Date</span>
+                          <input
+                            type="date"
+                            value={studentImportEditForm.admissiondate}
+                            onChange={(event) =>
+                              setStudentImportEditForm((prev) => (prev ? { ...prev, admissiondate: event.target.value } : prev))
+                            }
+                          />
+                        </label>
+                        <label>
+                          <span>Height</span>
+                          <input
+                            type="text"
+                            value={studentImportEditForm.height}
+                            onChange={(event) =>
+                              setStudentImportEditForm((prev) =>
+                                prev ? { ...prev, height: String(normalizeImportInteger(event.target.value) ?? '') } : prev,
+                              )
+                            }
+                          />
+                        </label>
+                        <label>
+                          <span>Weight</span>
+                          <input
+                            type="text"
+                            value={studentImportEditForm.weight}
+                            onChange={(event) =>
+                              setStudentImportEditForm((prev) =>
+                                prev ? { ...prev, weight: String(normalizeImportInteger(event.target.value) ?? '') } : prev,
+                              )
+                            }
+                          />
+                        </label>
+                        <label className="import-modal-full">
+                          <span>Address</span>
+                          <textarea
+                            value={studentImportEditForm.address}
+                            onChange={(event) =>
+                              setStudentImportEditForm((prev) => (prev ? { ...prev, address: event.target.value } : prev))
+                            }
+                          />
+                        </label>
+                        <label>
+                          <span>Father Name</span>
+                          <input
+                            type="text"
+                            value={studentImportEditForm.parents.father.name}
+                            onChange={(event) =>
+                              setStudentImportEditForm((prev) =>
+                                prev
+                                  ? {
+                                      ...prev,
+                                      parents: {
+                                        ...prev.parents,
+                                        father: { ...prev.parents.father, name: event.target.value },
+                                      },
+                                    }
+                                  : prev,
+                              )
+                            }
+                          />
+                        </label>
+                        <label>
+                          <span>Father Phone</span>
+                          <input
+                            type="text"
+                            value={studentImportEditForm.parents.father.phone}
+                            onChange={(event) =>
+                              setStudentImportEditForm((prev) =>
+                                prev
+                                  ? {
+                                      ...prev,
+                                      parents: {
+                                        ...prev.parents,
+                                        father: { ...prev.parents.father, phone: normalizeImportDigits(event.target.value) },
+                                      },
+                                    }
+                                  : prev,
+                              )
+                            }
+                          />
+                        </label>
+                        <label>
+                          <span>Father Aadhar</span>
+                          <input
+                            type="text"
+                            value={studentImportEditForm.parents.father.aadhar}
+                            onChange={(event) =>
+                              setStudentImportEditForm((prev) =>
+                                prev
+                                  ? {
+                                      ...prev,
+                                      parents: {
+                                        ...prev.parents,
+                                        father: { ...prev.parents.father, aadhar: normalizeImportDigits(event.target.value) },
+                                      },
+                                    }
+                                  : prev,
+                              )
+                            }
+                          />
+                        </label>
+                        <label>
+                          <span>Father Qualification</span>
+                          <input
+                            type="text"
+                            value={studentImportEditForm.parents.father.qualification}
+                            onChange={(event) =>
+                              setStudentImportEditForm((prev) =>
+                                prev
+                                  ? {
+                                      ...prev,
+                                      parents: {
+                                        ...prev.parents,
+                                        father: { ...prev.parents.father, qualification: event.target.value },
+                                      },
+                                    }
+                                  : prev,
+                              )
+                            }
+                          />
+                        </label>
+                        <label>
+                          <span>Mother Name</span>
+                          <input
+                            type="text"
+                            value={studentImportEditForm.parents.mother.name}
+                            onChange={(event) =>
+                              setStudentImportEditForm((prev) =>
+                                prev
+                                  ? {
+                                      ...prev,
+                                      parents: {
+                                        ...prev.parents,
+                                        mother: { ...prev.parents.mother, name: event.target.value },
+                                      },
+                                    }
+                                  : prev,
+                              )
+                            }
+                          />
+                        </label>
+                        <label>
+                          <span>Mother Phone</span>
+                          <input
+                            type="text"
+                            value={studentImportEditForm.parents.mother.phone}
+                            onChange={(event) =>
+                              setStudentImportEditForm((prev) =>
+                                prev
+                                  ? {
+                                      ...prev,
+                                      parents: {
+                                        ...prev.parents,
+                                        mother: { ...prev.parents.mother, phone: normalizeImportDigits(event.target.value) },
+                                      },
+                                    }
+                                  : prev,
+                              )
+                            }
+                          />
+                        </label>
+                        <label>
+                          <span>Mother Aadhar</span>
+                          <input
+                            type="text"
+                            value={studentImportEditForm.parents.mother.aadhar}
+                            onChange={(event) =>
+                              setStudentImportEditForm((prev) =>
+                                prev
+                                  ? {
+                                      ...prev,
+                                      parents: {
+                                        ...prev.parents,
+                                        mother: { ...prev.parents.mother, aadhar: normalizeImportDigits(event.target.value) },
+                                      },
+                                    }
+                                  : prev,
+                              )
+                            }
+                          />
+                        </label>
+                        <label>
+                          <span>Mother Qualification</span>
+                          <input
+                            type="text"
+                            value={studentImportEditForm.parents.mother.qualification}
+                            onChange={(event) =>
+                              setStudentImportEditForm((prev) =>
+                                prev
+                                  ? {
+                                      ...prev,
+                                      parents: {
+                                        ...prev.parents,
+                                        mother: { ...prev.parents.mother, qualification: event.target.value },
+                                      },
+                                    }
+                                  : prev,
+                              )
+                            }
+                          />
+                        </label>
+                      </div>
+
+                      <div className="import-modal-actions">
+                        <button
+                          type="button"
+                          className="import-action import-action-secondary"
+                          onClick={() => {
+                            setStudentImportEditIndex(null);
+                            setStudentImportEditForm(null);
+                          }}
+                        >
+                          Cancel
+                        </button>
+                        <button type="button" className="import-action import-action-primary" onClick={saveStudentImportRowEditor}>
+                          Save row
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+              </article>
+            ) : activePrincipalMenu === 'Dashboard' ? (
               <section className="dashboard-soon">
                 <p className="dashboard-soon-kicker">Dashboard</p>
                 <h3>This section is building soon</h3>
                 <p>We’re preparing a cleaner school ERP analytics hub for this area.</p>
               </section>
             ) : activePrincipalMenu === 'Students' ? (
-              <article className="panel module-panel">
+              <article className="panel module-panel student-module-panel">
                 <div className="student-module-head">
                   <div>
                     <h3>Student Management</h3>
@@ -4552,34 +7272,136 @@ function Dashboard({ user, token, onLogout }: { user: User; token: string; onLog
                   </div>
                 ) : (
                   <div className="student-module-grid">
-                    <section className="student-list-card">
+                    <section className="student-class-overview-card">
+                      <div className="student-workspace-head">
+                        <div>
+                          <h4>Class-wise Overview</h4>
+                          <p>Select a class to expand the full student list. Search by name, admission no, phone, or parent detail.</p>
+                        </div>
+                        <div className="student-global-search">
+                          <span>Global Search</span>
+                          <div className="student-global-search-input">
+                            <LuSearch aria-hidden="true" />
+                            <input
+                              type="text"
+                              value={studentDirectorySearch}
+                              onChange={(event) => setStudentDirectorySearch(event.target.value)}
+                              placeholder="Search students, admission no, phone, or parent..."
+                            />
+                          </div>
+                          {studentDirectorySearch.trim() ? (
+                            <div className="student-search-results-panel">
+                              {studentSearchResults.length === 0 ? (
+                                <p className="student-empty small">No matching students found.</p>
+                              ) : (
+                                studentSearchResults.map((row) => {
+                                  const profile = studentProfiles[row.id];
+                                  const parentLabel = (profile?.parents ?? [])
+                                    .map((item) => item.parent?.name ?? '')
+                                    .filter(Boolean)
+                                    .join(' · ');
+                                  return (
+                                    <button
+                                      key={row.id}
+                                      type="button"
+                                      className="student-search-result"
+                                      onClick={() => {
+                                        setStudentDirectorySearch('');
+                                        void openStudentView(row.id);
+                                      }}
+                                    >
+                                      <div>
+                                        <strong>{row.name}</strong>
+                                        <span>
+                                          {row.className} - {row.section} · {row.admissionno ?? 'N/A'}
+                                        </span>
+                                      </div>
+                                      <small>{parentLabel || profile?.parents?.[0]?.parent?.phone1 || 'Open profile'}</small>
+                                    </button>
+                                  );
+                                })
+                              )}
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      <div className="student-class-grid">
+                        {studentClassCards.map((cls) => {
+                          const selected = selectedStudentClassId === cls.id;
+                          return (
+                            <button
+                              key={cls.id}
+                              type="button"
+                              className={selected ? 'student-class-card selected' : 'student-class-card'}
+                              onClick={() => setSelectedStudentClassId((prev) => (prev === cls.id ? null : cls.id))}
+                            >
+                              <div className="student-class-card-top">
+                                <strong>{cls.name}</strong>
+                                <span>{cls.section}</span>
+                              </div>
+                              <div className="student-class-card-meta">
+                                <div>
+                                  <span>Students</span>
+                                  <strong>{cls.totalStudents}</strong>
+                                </div>
+                                <div>
+                                  <span>Teacher</span>
+                                  <strong>{cls.teacherName}</strong>
+                                </div>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </section>
+
+                    <section className="student-list-card student-list-card-full">
                       <div className="student-list-toolbar">
-                        <input
-                          type="text"
-                          value={studentDirectorySearch}
-                          onChange={(event) => setStudentDirectorySearch(event.target.value)}
-                          placeholder="Search by student, class, section, or parent..."
-                        />
-                        <span>{filteredStudentDirectoryRows.length} students</span>
+                        <div className="student-list-toolbar-copy">
+                          <strong>{selectedStudentClass ? `${selectedStudentClass.name} - ${selectedStudentClass.section}` : 'All Students'}</strong>
+                          <span>
+                            {selectedStudentDirectoryRows.length} student(s)
+                            {selectedStudentClass ? ' in the selected class' : ' available in the workspace'}
+                          </span>
+                        </div>
+                        {selectedStudentClassId ? (
+                          <button
+                            type="button"
+                            className="ghost-btn"
+                            onClick={() => setSelectedStudentClassId(null)}
+                          >
+                            View All
+                          </button>
+                        ) : null}
                       </div>
 
                       <div className="student-table-head">
                         <span>Name</span>
+                        <span>Admission No</span>
                         <span>Class</span>
-                        <span>Section</span>
                         <span>Parent</span>
                         <span>Actions</span>
                       </div>
                       <div className="student-table-body">
-                        {filteredStudentDirectoryRows.length === 0 ? <p className="student-empty">No students found.</p> : null}
-                        {filteredStudentDirectoryRows.map((row) => {
+                        {selectedStudentDirectoryRows.length === 0 ? <p className="student-empty">No students found.</p> : null}
+                        {selectedStudentDirectoryRows.map((row) => {
                           const profile = studentProfiles[row.id];
-                          const parentLabel = profile?.parents?.[0]?.parent?.name ?? 'View for details';
+                          const rowParents = (row.parents ?? []).flatMap((item) => (item.parent ? [item.parent] : []));
+                          const fatherName = rowParents.find((parent) => parent.relation === 'Father' || parent.type === 'FATHER')?.name;
+                          const motherName = rowParents.find((parent) => parent.relation === 'Mother' || parent.type === 'MOTHER')?.name;
+                          const fallbackParentName = (profile?.parents ?? [])
+                            .map((item) => item.parent?.name ?? '')
+                            .find((name) => Boolean(name));
+                          const parentLabel = fatherName ?? motherName ?? fallbackParentName ?? 'View for details';
                           return (
                             <article key={row.id} className="student-table-row">
                               <span>{row.name}</span>
-                              <span>{row.className}</span>
-                              <span>{row.section}</span>
+                              <span>{row.admissionno ?? 'N/A'}</span>
+                              <span>
+                                {row.className}
+                                {row.section ? ` - ${row.section}` : ''}
+                              </span>
                               <span>{parentLabel}</span>
                               <div className="student-row-actions">
                                 <button type="button" className="ghost-btn" onClick={() => openStudentView(row.id)}>
@@ -4655,9 +7477,9 @@ function Dashboard({ user, token, onLogout }: { user: User; token: string; onLog
                         </form>
                       ) : (
                         <article className="student-profile-card student-profile-card-compact">
-                          <h4>Student Insights</h4>
+                          <h4>Class Insights</h4>
                           <p className="student-side-note">
-                            Click <strong>View</strong> to open a full-screen profile with student details, fees, exams, marks, and attendance.
+                            Use the class cards above to move between sections. Click <strong>View</strong> for a full-screen student profile.
                           </p>
                           <div className="student-compact-kpis">
                             <div>
@@ -4675,7 +7497,7 @@ function Dashboard({ user, token, onLogout }: { user: User; token: string; onLog
                           </div>
                           <div className="student-insight-preview">
                             <span className="student-preview-dot" />
-                            <p>Profile cards, fee charts, marks trends, and attendance indicators will appear in the modal.</p>
+                            <p>Search results open complete student records with parent, fee, exam, and attendance details.</p>
                           </div>
                         </article>
                       )}
@@ -4876,7 +7698,7 @@ function Dashboard({ user, token, onLogout }: { user: User; token: string; onLog
                       </nav>
 
                       <div className="student-insight-body">
-                        {studentProfileLoading && !activeStudentProfile ? (
+                        {studentProfileLoading ? (
                           <div className="class-loader-wrap student-insight-loading">
                             <div className="class-loader" role="status" aria-live="polite">
                               <span className="loader-ring outer" />
@@ -4888,15 +7710,19 @@ function Dashboard({ user, token, onLogout }: { user: User; token: string; onLog
                         ) : (
                           <>
                             <section id="student-profile-summary" className="student-insight-grid">
-                              <article className="student-insight-card">
+                              <article className="student-insight-card student-insight-card-span-2">
                                 <header>
                                   <h5>Student Details</h5>
-                                  <span>Identity and enrollment</span>
+                                  <span>Identity, enrollment, and basic record</span>
                                 </header>
-                                <div className="student-insight-specs">
+                                <div className="student-insight-specs student-insight-specs-wide">
                                   <div>
                                     <span>Name</span>
                                     <strong>{activeStudentProfile?.name ?? 'N/A'}</strong>
+                                  </div>
+                                  <div>
+                                    <span>Admission No</span>
+                                    <strong>{activeStudentProfile?.admissionno ?? 'N/A'}</strong>
                                   </div>
                                   <div>
                                     <span>Gender</span>
@@ -4904,13 +7730,47 @@ function Dashboard({ user, token, onLogout }: { user: User; token: string; onLog
                                   </div>
                                   <div>
                                     <span>DOB</span>
-                                    <strong>
-                                      {activeStudentProfile?.dob ? new Date(activeStudentProfile.dob).toLocaleDateString() : 'N/A'}
-                                    </strong>
+                                    <strong>{formatDisplayDate(activeStudentProfile?.dob)}</strong>
                                   </div>
                                   <div>
                                     <span>Student ID</span>
                                     <strong>{activeStudentProfile?.id ?? activeStudentId}</strong>
+                                  </div>
+                                  <div>
+                                    <span>Admission Date</span>
+                                    <strong>{formatDisplayDate(activeStudentProfile?.admissiondate)}</strong>
+                                  </div>
+                                  <div>
+                                    <span>Blood Group</span>
+                                    <strong>{activeStudentProfile?.bloodgroup ?? 'N/A'}</strong>
+                                  </div>
+                                  <div>
+                                    <span>Mother Tongue</span>
+                                    <strong>{activeStudentProfile?.mothertongue ?? 'N/A'}</strong>
+                                  </div>
+                                  <div>
+                                    <span>Category</span>
+                                    <strong>{activeStudentProfile?.socialcategory ?? 'N/A'}</strong>
+                                  </div>
+                                  <div>
+                                    <span>Aadhaar</span>
+                                    <strong>{activeStudentProfile?.adharnumber ?? 'N/A'}</strong>
+                                  </div>
+                                  <div>
+                                    <span>Height</span>
+                                    <strong>{activeStudentProfile?.height ? `${activeStudentProfile.height} cm` : 'N/A'}</strong>
+                                  </div>
+                                  <div>
+                                    <span>Weight</span>
+                                    <strong>{activeStudentProfile?.weight ? `${activeStudentProfile.weight} kg` : 'N/A'}</strong>
+                                  </div>
+                                  <div className="student-insight-specs-full">
+                                    <span>Address</span>
+                                    <strong>{activeStudentProfile?.address ?? 'N/A'}</strong>
+                                  </div>
+                                  <div>
+                                    <span>Pincode</span>
+                                    <strong>{activeStudentProfile?.pincode ?? 'N/A'}</strong>
                                   </div>
                                 </div>
                               </article>
@@ -4918,19 +7778,50 @@ function Dashboard({ user, token, onLogout }: { user: User; token: string; onLog
                               <article className="student-insight-card">
                                 <header>
                                   <h5>Parent Details</h5>
-                                  <span>Primary guardians</span>
+                                  <span>Mother, father, and guardian records</span>
                                 </header>
-                                <div className="student-insight-list">
-                                  {(activeStudentProfile?.parents ?? []).length === 0 ? (
+                                <div className="student-insight-parent-grid">
+                                  {activeStudentParents.length === 0 ? (
                                     <p className="student-insight-empty">No parent data available.</p>
                                   ) : (
-                                    (activeStudentProfile?.parents ?? []).map((item, index) => (
-                                      <article key={item.parent?.id ?? index} className="student-insight-list-item">
-                                        <strong>{item.parent?.name ?? 'Parent'}</strong>
-                                        <span>
-                                          {item.parent?.relation ?? 'Relation N/A'}
-                                          {item.parent?.phone1 ? ` · ${item.parent.phone1}` : ''}
-                                        </span>
+                                    activeStudentParents.map((parent, index) => (
+                                      <article key={parent.id ?? index} className="student-insight-parent-card">
+                                        <div className="student-insight-parent-head">
+                                          <div>
+                                            <strong>{parent.name ?? 'Parent'}</strong>
+                                            <span>
+                                              {parent.relation ?? 'Relation N/A'}
+                                              {parent.type ? ` · ${parent.type}` : ''}
+                                            </span>
+                                          </div>
+                                          <span className="student-insight-parent-badge">{parent.type ?? 'N/A'}</span>
+                                        </div>
+                                        <div className="student-insight-specs student-insight-specs-parent">
+                                          <div>
+                                            <span>Phone 1</span>
+                                            <strong>{parent.phone1 ?? 'N/A'}</strong>
+                                          </div>
+                                          <div>
+                                            <span>Phone 2</span>
+                                            <strong>{parent.phone2 ?? 'N/A'}</strong>
+                                          </div>
+                                          <div>
+                                            <span>Aadhaar</span>
+                                            <strong>{parent.adharnumber ?? 'N/A'}</strong>
+                                          </div>
+                                          <div>
+                                            <span>Qualification</span>
+                                            <strong>{parent.qualification ?? 'N/A'}</strong>
+                                          </div>
+                                          <div>
+                                            <span>Email</span>
+                                            <strong>{parent.user?.email ?? 'N/A'}</strong>
+                                          </div>
+                                          <div>
+                                            <span>Gender</span>
+                                            <strong>{parent.user?.gender ?? 'N/A'}</strong>
+                                          </div>
+                                        </div>
                                       </article>
                                     ))
                                   )}
@@ -4952,6 +7843,10 @@ function Dashboard({ user, token, onLogout }: { user: User; token: string; onLog
                                     <strong>{activeStudentClass?.teacher?.name ?? 'N/A'}</strong>
                                   </div>
                                   <div>
+                                    <span>Teacher Email</span>
+                                    <strong>{activeStudentClass?.teacher?.user?.email ?? 'N/A'}</strong>
+                                  </div>
+                                  <div>
                                     <span>Bus</span>
                                     <strong>
                                       {activeStudentProfile?.bus
@@ -4968,12 +7863,12 @@ function Dashboard({ user, token, onLogout }: { user: User; token: string; onLog
 
                               <article className="student-insight-card">
                                 <header>
-                                  <h5>Contact & Admission</h5>
-                                  <span>Communication details</span>
+                                  <h5>Record Summary</h5>
+                                  <span>Administrative details</span>
                                 </header>
                                 <div className="student-insight-specs">
                                   <div>
-                                    <span>Guardian</span>
+                                    <span>Primary Guardian</span>
                                     <strong>{activeStudentPrimaryParent?.name ?? 'N/A'}</strong>
                                   </div>
                                   <div>
@@ -4985,8 +7880,12 @@ function Dashboard({ user, token, onLogout }: { user: User; token: string; onLog
                                     <strong>{activeStudentPrimaryParent?.phone2 ?? 'N/A'}</strong>
                                   </div>
                                   <div>
-                                    <span>Address</span>
-                                    <strong>{activeStudentPrimaryParent?.village ?? 'N/A'}</strong>
+                                    <span>Last Updated</span>
+                                    <strong>{formatDisplayDate(activeStudentProfile?.updatedAt)}</strong>
+                                  </div>
+                                  <div>
+                                    <span>Created</span>
+                                    <strong>{formatDisplayDate(activeStudentProfile?.createdAt)}</strong>
                                   </div>
                                 </div>
                               </article>
@@ -5027,12 +7926,20 @@ function Dashboard({ user, token, onLogout }: { user: User; token: string; onLog
                                     <strong>Active</strong>
                                   </div>
                                   <div>
-                                    <span>Documents</span>
-                                    <strong>N/A</strong>
+                                    <span>Parents Linked</span>
+                                    <strong>{activeStudentParents.length}</strong>
                                   </div>
                                   <div>
-                                    <span>Remarks</span>
-                                    <strong>N/A</strong>
+                                    <span>Fee Records</span>
+                                    <strong>{activeStudentFeeSummary.feeCount}</strong>
+                                  </div>
+                                  <div>
+                                    <span>Marks Records</span>
+                                    <strong>{activeStudentMarksSummary.totalExams}</strong>
+                                  </div>
+                                  <div>
+                                    <span>Payments</span>
+                                    <strong>{activeStudentFeeSummary.paymentCount}</strong>
                                   </div>
                                   <div>
                                     <span>Profile Loaded</span>
@@ -6459,7 +9366,7 @@ function Dashboard({ user, token, onLogout }: { user: User; token: string; onLog
               </article>
             ) : activePrincipalMenu === 'Marks' ? (
               renderMarksModule()
-            ) : activePrincipalMenu === 'Payment' ? (
+            ) : activePrincipalMenu === 'Payments' ? (
               renderFeeModule()
             ) : activePrincipalMenu === 'Class' ? (
               <article className="panel module-panel">
@@ -6526,10 +9433,10 @@ function Dashboard({ user, token, onLogout }: { user: User; token: string; onLog
                         <form className="class-form-card" onSubmit={createClass}>
                           <h4>Create Class</h4>
                           <input
-                            type="number"
-                            placeholder="Class Name (e.g. 6) *"
+                            type="text"
+                            placeholder="Class Name (e.g. PP1, 1-A) *"
                             value={createClassForm.name}
-                            onChange={(event) => setCreateClassForm((prev) => ({ ...prev, name: event.target.value }))}
+                            onChange={(event) => setCreateClassForm((prev) => ({ ...prev, name: event.target.value.toUpperCase() }))}
                             required
                           />
                           <input
@@ -6566,10 +9473,10 @@ function Dashboard({ user, token, onLogout }: { user: User; token: string; onLog
                         <form className="class-form-card" onSubmit={updateClass}>
                           <h4>Edit Class</h4>
                           <input
-                            type="number"
+                            type="text"
                             placeholder="Class Name *"
                             value={editClassForm.name}
-                            onChange={(event) => setEditClassForm((prev) => ({ ...prev, name: event.target.value }))}
+                            onChange={(event) => setEditClassForm((prev) => ({ ...prev, name: event.target.value.toUpperCase() }))}
                             required
                           />
                           <input
@@ -6620,6 +9527,8 @@ function Dashboard({ user, token, onLogout }: { user: User; token: string; onLog
             )}
           </section>
         </section>
+      ) : user.role === 'PARENT' ? (
+        <section className="non-principal-shell parent-shell">{renderParentDashboard()}</section>
       ) : (
         <section className="non-principal-shell">
           {canViewMarks ? renderMarksModule() : null}
@@ -6777,58 +9686,75 @@ function App() {
         <img src={logo} alt="" />
       </div>
 
-      <section className="login-card">
-        <h1>IDPS KOVVUR LOGIN</h1>
-        <p className="subtitle">Secure OTP sign in for Principal, Teacher, Receptionist, and Parent.</p>
-
-        {step === 'email' ? (
-          <form onSubmit={sendOtp} className="form">
-            <label>
-              Email
-              <input
-                type="email"
-                required
-                placeholder="example@gmail.com"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-              />
-            </label>
-            <button type="submit" disabled={loading}>
-              {loading ? 'Sending OTP...' : 'Send OTP'}
-            </button>
-          </form>
-        ) : null}
-
-        {step === 'otp' ? (
-          <form onSubmit={verifyOtp} className="form">
-            <label>
-              Email
-              <input type="email" value={email} disabled />
-            </label>
-
-            <label>
-              OTP
-              <input
-                type="text"
-                minLength={6}
-                maxLength={6}
-                required
-                placeholder="Enter 6-digit OTP"
-                value={otp}
-                onChange={(event) => setOtp(event.target.value)}
-              />
-            </label>
-
-            <div className="row-actions">
-              <button type="submit" disabled={loading}>
-                {loading ? 'Verifying...' : 'Verify OTP'}
-              </button>
-              <button type="button" className="secondary" onClick={() => setStep('email')}>
-                Change Email
-              </button>
+      <section className="login-shell">
+        <section className="login-card">
+          <div className="login-card-header">
+            <div className="login-card-mark">
+              <img src={logo} alt="" />
             </div>
-          </form>
-        ) : null}
+            <div>
+              <p>Secure Access</p>
+              <h2>Sign in to your portal</h2>
+            </div>
+          </div>
+
+          <div className="login-badges" aria-hidden="true">
+            <span>OTP Protected</span>
+            <span>Role Based</span>
+            <span>Mobile Ready</span>
+          </div>
+
+          {step === 'email' ? (
+            <form onSubmit={sendOtp} className="form login-form">
+              <label>
+                Email
+                <input
+                  type="email"
+                  required
+                  placeholder="example@gmail.com"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                />
+              </label>
+              <p className="login-note">We will send a 6-digit OTP to this email address.</p>
+              <button type="submit" disabled={loading}>
+                {loading ? 'Sending OTP...' : 'Send OTP'}
+              </button>
+            </form>
+          ) : null}
+
+          {step === 'otp' ? (
+            <form onSubmit={verifyOtp} className="form login-form">
+              <label>
+                Email
+                <input type="email" value={email} disabled />
+              </label>
+
+              <label>
+                OTP
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  minLength={6}
+                  maxLength={6}
+                  required
+                  placeholder="Enter 6-digit OTP"
+                  value={otp}
+                  onChange={(event) => setOtp(event.target.value)}
+                />
+              </label>
+
+              <div className="row-actions">
+                <button type="submit" disabled={loading}>
+                  {loading ? 'Verifying...' : 'Verify OTP'}
+                </button>
+                <button type="button" className="secondary" onClick={() => setStep('email')}>
+                  Change Email
+                </button>
+              </div>
+            </form>
+          ) : null}
+        </section>
       </section>
     </main>
   );
