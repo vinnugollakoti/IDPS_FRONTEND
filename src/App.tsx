@@ -448,7 +448,7 @@ type VerifyResponse = {
   user?: User;
 };
 
-const API_BASE = 'http://localhost:3000';
+const API_BASE = 'https://idps-backend.onrender.com';
 const TOKEN_KEY = 'idps-token';
 const USER_KEY = 'idps-user';
 const PRINCIPAL_MENU_KEY = 'idps-principal-menu';
