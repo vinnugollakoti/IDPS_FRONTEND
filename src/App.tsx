@@ -3903,6 +3903,26 @@ function Dashboard({ user, token, onLogout }: { user: User; token: string; onLog
   }, [activeParentStudentRow, loadStudentProfile, studentProfiles, user.role]);
 
   useEffect(() => {
+    if (user.role !== 'PARENT') {
+      return;
+    }
+
+    if (parentDashboardLoading && (parentLinkedStudents.length > 0 || classes.length > 0 || Object.keys(studentProfiles).length > 0)) {
+      setParentDashboardLoading(false);
+    }
+  }, [classes.length, parentDashboardLoading, parentLinkedStudents.length, studentProfiles, user.role]);
+
+  useEffect(() => {
+    if (user.role !== 'PARENT') {
+      return;
+    }
+
+    if (parentDetailLoading && activeParentStudentRow && studentProfiles[activeParentStudentRow.id]) {
+      setParentDetailLoading(false);
+    }
+  }, [activeParentStudentRow, parentDetailLoading, studentProfiles, user.role]);
+
+  useEffect(() => {
     if (user.role === 'PARENT') {
       setParentDashboardTab('overview');
     }
@@ -4060,7 +4080,8 @@ function Dashboard({ user, token, onLogout }: { user: User; token: string; onLog
     const selectedClass = activeParentStudentClass;
     const attendancePercent = selectedStudent?.attendancePercent ?? null;
     const selectedGuardian = selectedStudent?.primaryGuardianName ?? selectedDetail?.parents?.[0]?.parent?.name ?? 'N/A';
-    const parentDashboardIsLoading = parentDashboardLoading || parentDetailLoading;
+    const parentDashboardHasData = parentLinkedStudents.length > 0 || classes.length > 0 || Object.keys(studentProfiles).length > 0;
+    const parentDashboardIsLoading = parentDashboardLoading && !parentDashboardHasData;
     const parentMobileSections: Array<{ key: 'home' | 'exams' | 'fees' | 'attendance' | 'profile'; label: string; count?: number; icon: ReactNode }> = [
       { key: 'home', label: 'Home', icon: <LuHouse /> },
       { key: 'exams', label: 'Exams', icon: <LuBookOpen /> },
