@@ -17,6 +17,7 @@ import {
   LuGauge,
   LuGraduationCap,
   LuLogOut,
+  LuMenu,
   LuPencil,
   LuSearch,
   LuSettings,
@@ -25,6 +26,7 @@ import {
   LuUserRoundCheck,
   LuUsers,
   LuUpload,
+  LuX,
 } from 'react-icons/lu';
 import logo from './assets/idps_logo.png';
 import './App.css';
@@ -231,6 +233,47 @@ type ParentStudentRow = {
   primaryGuardianName: string | null;
 };
 
+type ParentDashboardTab = 'overview' | 'exams' | 'fees' | 'attendance';
+
+type ParentExamRow = {
+  id: number;
+  examId: number;
+  examName: string;
+  subjectName: string;
+  className: string;
+  section: string;
+  examDate: string | null;
+  marks: number;
+  totalMarks: number;
+  percent: number;
+  band: 'EXCELLENT' | 'GOOD' | 'NEEDS_ATTENTION';
+};
+
+type ParentFeeRow = {
+  id: number;
+  type: 'TUITION' | 'BUS' | 'EXAM' | 'OTHER';
+  academicYear: string;
+  total: number;
+  paid: number;
+  remaining: number;
+  status: 'PAID' | 'PARTIAL' | 'PENDING';
+  paymentCount: number;
+  latestPaymentMethod: 'ONLINE' | 'CASH' | null;
+  latestPaymentStatus: 'PENDING' | 'SUCCESS' | 'REJECTED' | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+};
+
+type ParentAttendanceRow = {
+  sessionId: number;
+  date: string | null;
+  className: string;
+  section: string;
+  status: 'PRESENT' | 'ABSENT';
+  takenBy: string;
+  monthKey: string;
+};
+
 type ClassSection = {
   id: number;
   name: string;
@@ -248,6 +291,14 @@ type ClassSection = {
   attendanceSessions?: Array<{
     id: number;
     date?: string;
+    takenBy?: {
+      id: number;
+      name: string;
+      phone?: string | null;
+      user?: {
+        email?: string;
+      } | null;
+    } | null;
     attendances?: Array<{
       id: number;
       studentId: number;
@@ -961,6 +1012,21 @@ function Dashboard({ user, token, onLogout }: { user: User; token: string; onLog
   const [parentDetailLoading, setParentDetailLoading] = useState(false);
   const [parentStudentSearch, setParentStudentSearch] = useState('');
   const [activeParentStudentId, setActiveParentStudentId] = useState<number | null>(null);
+  const [parentDashboardTab, setParentDashboardTab] = useState<ParentDashboardTab>('overview');
+  const [parentMobileMenuOpen, setParentMobileMenuOpen] = useState(false);
+  const [parentExamSearch, setParentExamSearch] = useState('');
+  const [parentExamSubjectFilter, setParentExamSubjectFilter] = useState('ALL');
+  const [parentExamBandFilter, setParentExamBandFilter] = useState<'ALL' | 'EXCELLENT' | 'GOOD' | 'NEEDS_ATTENTION'>('ALL');
+  const [parentExamSort, setParentExamSort] = useState<'recent' | 'highest' | 'lowest'>('recent');
+  const [parentFeeSearch, setParentFeeSearch] = useState('');
+  const [parentFeeTypeFilter, setParentFeeTypeFilter] = useState<'ALL' | 'TUITION' | 'BUS' | 'EXAM' | 'OTHER'>('ALL');
+  const [parentFeeStatusFilter, setParentFeeStatusFilter] = useState<'ALL' | 'PAID' | 'PARTIAL' | 'PENDING'>('ALL');
+  const [parentFeeYearFilter, setParentFeeYearFilter] = useState('ALL');
+  const [parentFeeSort, setParentFeeSort] = useState<'recent' | 'remaining' | 'paid'>('recent');
+  const [parentAttendanceSearch, setParentAttendanceSearch] = useState('');
+  const [parentAttendanceStatusFilter, setParentAttendanceStatusFilter] = useState<'ALL' | 'PRESENT' | 'ABSENT'>('ALL');
+  const [parentAttendanceMonthFilter, setParentAttendanceMonthFilter] = useState('ALL');
+  const [parentAttendanceSort, setParentAttendanceSort] = useState<'recent' | 'oldest'>('recent');
   const [examModuleLoading, setExamModuleLoading] = useState(false);
   const [subjectModuleLoading, setSubjectModuleLoading] = useState(false);
   const [subjectSearch, setSubjectSearch] = useState('');
@@ -3473,6 +3539,210 @@ function Dashboard({ user, token, onLogout }: { user: User; token: string; onLog
     };
   }, [activeParentStudentFeeDetails, activeParentStudentMarkDetails]);
 
+  const activeParentStudentExamRows = useMemo<ParentExamRow[]>(() => {
+    if (!activeParentStudentDetail) {
+      return [];
+    }
+
+    return (activeParentStudentDetail.marks ?? [])
+      .map((mark) => {
+        const exam = mark.exam ?? null;
+        const totalMarks = Number(exam?.totalMarks ?? 0);
+        const marks = Number(mark.marks ?? 0);
+        const percent = totalMarks ? Math.min(Math.round((marks / totalMarks) * 100), 100) : 0;
+        const band: ParentExamRow['band'] = percent >= 90 ? 'EXCELLENT' : percent >= 75 ? 'GOOD' : 'NEEDS_ATTENTION';
+
+        return {
+          id: mark.id,
+          examId: mark.examId,
+          examName: exam?.name ?? `Exam ${mark.examId}`,
+          subjectName: exam?.subject?.name ?? 'Subject',
+          className: exam?.class?.name ?? activeParentStudentRow?.className ?? 'Class',
+          section: exam?.class?.section ?? activeParentStudentRow?.section ?? '',
+          examDate: exam?.examDate ?? null,
+          marks,
+          totalMarks,
+          percent,
+          band,
+        };
+      })
+      .sort((a, b) => {
+        const aTime = a.examDate ? new Date(a.examDate).getTime() : 0;
+        const bTime = b.examDate ? new Date(b.examDate).getTime() : 0;
+        return bTime - aTime || b.percent - a.percent;
+      });
+  }, [activeParentStudentDetail, activeParentStudentRow?.className, activeParentStudentRow?.section]);
+
+  const activeParentStudentFeeRows = useMemo<ParentFeeRow[]>(() => {
+    if (!activeParentStudentDetail) {
+      return [];
+    }
+
+    return (activeParentStudentDetail.feeDetails ?? [])
+      .map((fee) => {
+        const payments = fee.payments ?? [];
+        const paid = fee.totalPaid ?? payments.filter((payment) => payment.status === 'SUCCESS').reduce((sum, payment) => sum + Number(payment.amount ?? 0), 0);
+        const total = Number(fee.total ?? 0);
+        const remaining = fee.remaining ?? Math.max(total - Number(paid), 0);
+        const status: ParentFeeRow['status'] = remaining <= 0 ? 'PAID' : Number(paid) > 0 ? 'PARTIAL' : 'PENDING';
+        const latestPayment = payments[0] ?? null;
+
+        return {
+          id: fee.id,
+          type: fee.type,
+          academicYear: fee.academicYear,
+          total,
+          paid: Number(paid),
+          remaining,
+          status,
+          paymentCount: payments.length,
+          latestPaymentMethod: latestPayment?.method ?? null,
+          latestPaymentStatus: latestPayment?.status ?? null,
+          createdAt: fee.createdAt ?? null,
+          updatedAt: fee.updatedAt ?? null,
+        };
+      })
+      .sort((a, b) => {
+        const aTime = a.updatedAt ? new Date(a.updatedAt).getTime() : a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const bTime = b.updatedAt ? new Date(b.updatedAt).getTime() : b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return bTime - aTime;
+      });
+  }, [activeParentStudentDetail]);
+
+  const activeParentStudentAttendanceRows = useMemo<ParentAttendanceRow[]>(() => {
+    if (!activeParentStudentRow) {
+      return [];
+    }
+
+    const studentClass = classes.find((cls) => cls.id === activeParentStudentRow.classId);
+    const sessions = studentClass?.attendanceSessions ?? [];
+
+    return sessions
+      .flatMap((session) => {
+        const record = (session.attendances ?? []).find((item) => item.studentId === activeParentStudentRow.id);
+        if (!record) {
+          return [];
+        }
+
+        const dateValue = session.date ?? null;
+        const monthKey = dateValue ? new Date(dateValue).toISOString().slice(0, 7) : 'unknown';
+
+        return [
+          {
+            sessionId: session.id,
+            date: dateValue,
+            className: studentClass?.name ?? activeParentStudentRow.className,
+            section: studentClass?.section ?? activeParentStudentRow.section,
+            status: record.status,
+            takenBy: session.takenBy?.name ?? 'N/A',
+            monthKey,
+          },
+        ];
+      })
+      .sort((a, b) => {
+        const aTime = a.date ? new Date(a.date).getTime() : 0;
+        const bTime = b.date ? new Date(b.date).getTime() : 0;
+        return bTime - aTime;
+      });
+  }, [activeParentStudentRow, classes]);
+
+  const activeParentStudentAttendanceSummary = useMemo(() => {
+    const total = activeParentStudentAttendanceRows.length;
+    const present = activeParentStudentAttendanceRows.filter((row) => row.status === 'PRESENT').length;
+    const absent = activeParentStudentAttendanceRows.filter((row) => row.status === 'ABSENT').length;
+    const percent = total ? Math.round((present / total) * 100) : 0;
+
+    return {
+      total,
+      present,
+      absent,
+      percent,
+      latest: activeParentStudentAttendanceRows[0] ?? null,
+    };
+  }, [activeParentStudentAttendanceRows]);
+
+  const parentExamSubjectOptions = useMemo(() => {
+    return Array.from(new Set(activeParentStudentExamRows.map((row) => row.subjectName))).sort((a, b) => a.localeCompare(b));
+  }, [activeParentStudentExamRows]);
+
+  const parentFeeYearOptions = useMemo(() => {
+    return Array.from(new Set(activeParentStudentFeeRows.map((row) => row.academicYear))).sort((a, b) => b.localeCompare(a));
+  }, [activeParentStudentFeeRows]);
+
+  const parentAttendanceMonthOptions = useMemo(() => {
+    return Array.from(new Set(activeParentStudentAttendanceRows.map((row) => row.monthKey).filter((value) => value !== 'unknown'))).sort(
+      (a, b) => b.localeCompare(a),
+    );
+  }, [activeParentStudentAttendanceRows]);
+
+  const filteredParentExamRows = useMemo(() => {
+    const query = parentExamSearch.trim().toLowerCase();
+    return activeParentStudentExamRows
+      .filter((row) => {
+        const matchesQuery =
+          !query ||
+          [row.examName, row.subjectName, row.className, row.section, String(row.marks), String(row.totalMarks), row.examDate ?? '']
+            .join(' ')
+            .toLowerCase()
+            .includes(query);
+        const matchesSubject = parentExamSubjectFilter === 'ALL' || row.subjectName === parentExamSubjectFilter;
+        const matchesBand = parentExamBandFilter === 'ALL' || row.band === parentExamBandFilter;
+        return matchesQuery && matchesSubject && matchesBand;
+      })
+      .sort((a, b) => {
+        if (parentExamSort === 'highest') return b.percent - a.percent || b.marks - a.marks;
+        if (parentExamSort === 'lowest') return a.percent - b.percent || a.marks - b.marks;
+        const aTime = a.examDate ? new Date(a.examDate).getTime() : 0;
+        const bTime = b.examDate ? new Date(b.examDate).getTime() : 0;
+        return bTime - aTime || b.percent - a.percent;
+      });
+  }, [activeParentStudentExamRows, parentExamBandFilter, parentExamSearch, parentExamSort, parentExamSubjectFilter]);
+
+  const filteredParentFeeRows = useMemo(() => {
+    const query = parentFeeSearch.trim().toLowerCase();
+    return activeParentStudentFeeRows
+      .filter((row) => {
+        const matchesQuery =
+          !query ||
+          [row.type, row.academicYear, row.status, String(row.total), String(row.paid), String(row.remaining)]
+            .join(' ')
+            .toLowerCase()
+            .includes(query);
+        const matchesType = parentFeeTypeFilter === 'ALL' || row.type === parentFeeTypeFilter;
+        const matchesStatus = parentFeeStatusFilter === 'ALL' || row.status === parentFeeStatusFilter;
+        const matchesYear = parentFeeYearFilter === 'ALL' || row.academicYear === parentFeeYearFilter;
+        return matchesQuery && matchesType && matchesStatus && matchesYear;
+      })
+      .sort((a, b) => {
+        if (parentFeeSort === 'paid') return b.paid - a.paid || a.remaining - b.remaining;
+        if (parentFeeSort === 'remaining') return b.remaining - a.remaining || b.paid - a.paid;
+        const aTime = a.updatedAt ? new Date(a.updatedAt).getTime() : a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const bTime = b.updatedAt ? new Date(b.updatedAt).getTime() : b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return bTime - aTime;
+      });
+  }, [activeParentStudentFeeRows, parentFeeSearch, parentFeeSort, parentFeeStatusFilter, parentFeeTypeFilter, parentFeeYearFilter]);
+
+  const filteredParentAttendanceRows = useMemo(() => {
+    const query = parentAttendanceSearch.trim().toLowerCase();
+    return activeParentStudentAttendanceRows
+      .filter((row) => {
+        const matchesQuery =
+          !query ||
+          [row.className, row.section, row.takenBy, row.status, formatDisplayDate(row.date), row.monthKey]
+            .join(' ')
+            .toLowerCase()
+            .includes(query);
+        const matchesStatus = parentAttendanceStatusFilter === 'ALL' || row.status === parentAttendanceStatusFilter;
+        const matchesMonth = parentAttendanceMonthFilter === 'ALL' || row.monthKey === parentAttendanceMonthFilter;
+        return matchesQuery && matchesStatus && matchesMonth;
+      })
+      .sort((a, b) => {
+        const aTime = a.date ? new Date(a.date).getTime() : 0;
+        const bTime = b.date ? new Date(b.date).getTime() : 0;
+        return parentAttendanceSort === 'oldest' ? aTime - bTime : bTime - aTime;
+      });
+  }, [activeParentStudentAttendanceRows, parentAttendanceMonthFilter, parentAttendanceSearch, parentAttendanceSort, parentAttendanceStatusFilter]);
+
   const filteredParentStudents = useMemo(() => {
     const query = parentStudentSearch.trim().toLowerCase();
     if (!query) {
@@ -3556,6 +3826,12 @@ function Dashboard({ user, token, onLogout }: { user: User; token: string; onLog
       cancelled = true;
     };
   }, [activeParentStudentRow, loadStudentProfile, studentProfiles, user.role]);
+
+  useEffect(() => {
+    if (user.role === 'PARENT') {
+      setParentDashboardTab('overview');
+    }
+  }, [activeParentStudentRow?.id, user.role]);
 
   const existingMarksByStudent = useMemo(() => {
     const map = new Map<number, number>();
@@ -3705,9 +3981,155 @@ function Dashboard({ user, token, onLogout }: { user: User; token: string; onLog
     const selectedClass = activeParentStudentClass;
     const attendancePercent = selectedStudent?.attendancePercent ?? null;
     const selectedGuardian = selectedStudent?.primaryGuardianName ?? selectedDetail?.parents?.[0]?.parent?.name ?? 'N/A';
+    const parentDashboardSections: Array<{ key: ParentDashboardTab; label: string; count?: number }> = [
+      { key: 'overview', label: 'Overview' },
+      { key: 'exams', label: 'Exams', count: activeParentStudentExamRows.length },
+      { key: 'fees', label: 'Fees', count: activeParentStudentFeeRows.length },
+      { key: 'attendance', label: 'Attendance', count: activeParentStudentAttendanceRows.length },
+    ];
 
     return (
       <section className="parent-dashboard-shell">
+        <div className="parent-mobile-toolbar">
+          <div className="parent-mobile-toolbar-copy">
+            <p className="section-eyebrow">Parent portal</p>
+            <strong>{selectedStudent?.name ?? 'Select a student'}</strong>
+            <span>{parentDashboardSections.find((section) => section.key === parentDashboardTab)?.label ?? 'Overview'}</span>
+          </div>
+          <button
+            type="button"
+            className="parent-mobile-menu-btn"
+            aria-expanded={parentMobileMenuOpen}
+            aria-controls="parent-mobile-drawer"
+            onClick={() => setParentMobileMenuOpen((current) => !current)}
+          >
+            <LuMenu />
+            Menu
+          </button>
+        </div>
+
+        {parentMobileMenuOpen ? (
+          <div className="parent-mobile-drawer-backdrop" role="presentation" onClick={() => setParentMobileMenuOpen(false)}>
+            <aside
+              id="parent-mobile-drawer"
+              className="parent-mobile-drawer"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Parent dashboard menu"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="parent-mobile-drawer-head">
+                <div>
+                  <p className="section-eyebrow">Menu</p>
+                  <h3>Choose content</h3>
+                  <p>Switch the student or jump to a dashboard section.</p>
+                </div>
+                <button type="button" className="parent-mobile-drawer-close" onClick={() => setParentMobileMenuOpen(false)}>
+                  <LuX />
+                </button>
+              </div>
+
+              <label className="parent-rail-search parent-mobile-search">
+                <LuSearch />
+                <input
+                  type="text"
+                  placeholder="Search child, class, admission no..."
+                  value={parentStudentSearch}
+                  onChange={(event) => setParentStudentSearch(event.target.value)}
+                />
+              </label>
+
+              <div className="parent-mobile-section-group">
+                <p className="parent-mobile-section-title">Sections</p>
+                <div className="parent-mobile-section-list">
+                  {parentDashboardSections.map((section) => (
+                    <button
+                      key={section.key}
+                      type="button"
+                      className={parentDashboardTab === section.key ? 'active' : ''}
+                      onClick={() => {
+                        setParentDashboardTab(section.key);
+                        setParentMobileMenuOpen(false);
+                      }}
+                    >
+                      <span>{section.label}</span>
+                      {typeof section.count === 'number' ? <strong>{section.count}</strong> : null}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="parent-mobile-section-group parent-mobile-student-group">
+                <p className="parent-mobile-section-title">Linked students</p>
+                <div className="parent-mobile-student-list">
+                  {parentDashboardLoading ? (
+                    <div className="class-loader-wrap parent-dashboard-loader">
+                      <div className="class-loader" role="status" aria-live="polite">
+                        <span className="loader-ring outer" />
+                        <span className="loader-ring inner" />
+                        <img src={logo} alt="IDPS logo loading" />
+                      </div>
+                      <p>Loading your family dashboard...</p>
+                    </div>
+                  ) : filteredParentStudents.length === 0 ? (
+                    <div className="parent-empty-state">
+                      <LuUserRoundCheck />
+                      <h4>No linked students yet</h4>
+                      <p>Once the school connects a child to your parent account, their record will appear here automatically.</p>
+                    </div>
+                  ) : (
+                    filteredParentStudents.map((student) => {
+                      const isActive = student.id === selectedStudent?.id;
+                      return (
+                        <button
+                          key={student.id}
+                          type="button"
+                          className={isActive ? 'parent-student-card active' : 'parent-student-card'}
+                          onClick={() => {
+                            setActiveParentStudentId(student.id);
+                            setParentMobileMenuOpen(false);
+                          }}
+                        >
+                          <div className="parent-student-card-head">
+                            <div className="parent-student-avatar">{student.name.trim().charAt(0).toUpperCase()}</div>
+                            <div className="parent-student-card-copy">
+                              <h4>{student.name}</h4>
+                              <p>
+                                {student.className} - {student.section}
+                              </p>
+                            </div>
+                            <LuChevronRight />
+                          </div>
+
+                          <div className="parent-student-card-chips">
+                            <span>{formatAgeFromDob(student.dob)}</span>
+                            <span>{student.gender ?? 'N/A'}</span>
+                          </div>
+
+                          <div className="parent-student-card-metrics">
+                            <div>
+                              <span>Fees due</span>
+                              <strong>{formatInr(student.remainingFees)}</strong>
+                            </div>
+                            <div>
+                              <span>Marks</span>
+                              <strong>{student.averageMarks}%</strong>
+                            </div>
+                            <div>
+                              <span>Attendance</span>
+                              <strong>{student.attendancePercent ?? 0}%</strong>
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            </aside>
+          </div>
+        ) : null}
+
         <header className="parent-dashboard-hero">
           <div className="parent-dashboard-hero-copy">
             <p className="section-eyebrow">Parent portal</p>
@@ -3839,7 +4261,7 @@ function Dashboard({ user, token, onLogout }: { user: User; token: string; onLog
                       </div>
 
                       <div className="parent-student-card-chips">
-                        <span>{student.admissionno ?? 'Admission N/A'}</span>
+                        <span>{formatAgeFromDob(student.dob)}</span>
                         <span>{student.gender ?? 'N/A'}</span>
                       </div>
 
@@ -3932,385 +4354,594 @@ function Dashboard({ user, token, onLogout }: { user: User; token: string; onLog
                   </div>
                 ) : null}
 
-                <div className="parent-student-detail-grid">
-                  <article className="parent-detail-card parent-detail-card-wide">
-                    <header>
-                      <div>
-                        <p className="section-eyebrow">Identity</p>
-                        <h4>Student details</h4>
-                      </div>
-                      <LuBookCopy />
-                    </header>
-                    <div className="parent-detail-specs">
-                      <div>
-                        <span>Name</span>
-                        <strong>{selectedDetail?.name ?? selectedStudent.name}</strong>
-                      </div>
-                      <div>
-                        <span>Admission no</span>
-                        <strong>{selectedDetail?.admissionno ?? selectedStudent.admissionno ?? 'N/A'}</strong>
-                      </div>
-                      <div>
-                        <span>Gender</span>
-                        <strong>{selectedDetail?.gender ?? selectedStudent.gender ?? 'N/A'}</strong>
-                      </div>
-                      <div>
-                        <span>DOB</span>
-                        <strong>{formatDisplayDate(selectedDetail?.dob ?? selectedStudent.dob)}</strong>
-                      </div>
-                      <div>
-                        <span>Age</span>
-                        <strong>{formatAgeFromDob(selectedDetail?.dob ?? selectedStudent.dob)}</strong>
-                      </div>
-                      <div>
-                        <span>Aadhaar</span>
-                        <strong>{selectedDetail?.adharnumber ?? 'N/A'}</strong>
-                      </div>
-                      <div>
-                        <span>Blood group</span>
-                        <strong>{selectedDetail?.bloodgroup ?? 'N/A'}</strong>
-                      </div>
-                      <div>
-                        <span>Mother tongue</span>
-                        <strong>{selectedDetail?.mothertongue ?? 'N/A'}</strong>
-                      </div>
-                      <div>
-                        <span>Category</span>
-                        <strong>{selectedDetail?.socialcategory ?? 'N/A'}</strong>
-                      </div>
-                      <div>
-                        <span>Height</span>
-                        <strong>{selectedDetail?.height ? `${selectedDetail.height} cm` : 'N/A'}</strong>
-                      </div>
-                      <div>
-                        <span>Weight</span>
-                        <strong>{selectedDetail?.weight ? `${selectedDetail.weight} kg` : 'N/A'}</strong>
-                      </div>
-                      <div className="parent-detail-span">
-                        <span>Address</span>
-                        <strong>{selectedDetail?.address ?? 'N/A'}</strong>
-                      </div>
-                      <div>
-                        <span>Pincode</span>
-                        <strong>{selectedDetail?.pincode ?? 'N/A'}</strong>
-                      </div>
-                    </div>
-                  </article>
-
-                  <article className="parent-detail-card parent-detail-card-wide">
-                    <header>
-                      <div>
-                        <p className="section-eyebrow">Academics</p>
-                        <h4>Class and school context</h4>
-                      </div>
-                      <LuGraduationCap />
-                    </header>
-                    <div className="parent-detail-specs">
-                      <div>
-                        <span>Class</span>
-                        <strong>
-                          {selectedClass ? `${selectedClass.name} - ${selectedClass.section}` : `${selectedStudent.className} - ${selectedStudent.section}`}
-                        </strong>
-                      </div>
-                      <div>
-                        <span>Class teacher</span>
-                        <strong>{selectedClass?.teacher?.name ?? selectedStudent.teacherName ?? 'N/A'}</strong>
-                      </div>
-                      <div>
-                        <span>Teacher email</span>
-                        <strong>{selectedClass?.teacher?.user?.email ?? selectedStudent.teacherEmail ?? 'N/A'}</strong>
-                      </div>
-                      <div>
-                        <span>Admission date</span>
-                        <strong>{formatDisplayDate(selectedDetail?.admissiondate)}</strong>
-                      </div>
-                      <div>
-                        <span>Created</span>
-                        <strong>{formatDisplayDate(selectedDetail?.createdAt)}</strong>
-                      </div>
-                      <div>
-                        <span>Updated</span>
-                        <strong>{formatDisplayDate(selectedDetail?.updatedAt)}</strong>
-                      </div>
-                    </div>
-                  </article>
-
-                  <article className="parent-detail-card parent-detail-card-wide">
-                    <header>
-                      <div>
-                        <p className="section-eyebrow">Guardians</p>
-                        <h4>Parent information</h4>
-                      </div>
-                      <LuUsers />
-                    </header>
-                    <div
-                      className={
-                        activeParentStudentGuardianProfiles.length >= 2
-                          ? 'parent-guardian-stack two-up'
-                          : 'parent-guardian-stack'
-                      }
+                <div className="parent-dashboard-tabs">
+                  <div className="parent-tab-switch" role="tablist" aria-label="Parent student sections">
+                    <button
+                      type="button"
+                      className={parentDashboardTab === 'overview' ? 'active' : ''}
+                      onClick={() => setParentDashboardTab('overview')}
                     >
-                      {activeParentStudentGuardianProfiles.length === 0 ? (
-                        <p className="parent-empty-copy">No guardian details returned by the backend yet.</p>
-                      ) : (
-                        activeParentStudentGuardianProfiles.map((guardian) => (
-                          <article key={guardian.id} className="parent-guardian-card">
-                            <div className="parent-guardian-head">
-                              <div>
-                                <strong>{guardian.name}</strong>
-                                <p>
-                                  {guardian.relation ?? 'Relation N/A'}
-                                  {guardian.type ? ` · ${guardian.type}` : ''}
-                                </p>
-                              </div>
-                              <span>{guardian.type ?? 'N/A'}</span>
-                            </div>
-                            <div className="parent-detail-specs parent-detail-specs-compact">
-                              <div>
-                                <span>Phone 1</span>
-                                <strong>{guardian.phone1 ?? 'N/A'}</strong>
-                              </div>
-                              <div>
-                                <span>Phone 2</span>
-                                <strong>{guardian.phone2 ?? 'N/A'}</strong>
-                              </div>
-                              <div>
-                                <span>Email</span>
-                                <strong>{guardian.user?.email ?? 'N/A'}</strong>
-                              </div>
-                              <div>
-                                <span>Gender</span>
-                                <strong>{guardian.user?.gender ?? 'N/A'}</strong>
-                              </div>
-                              <div>
-                                <span>Aadhaar</span>
-                                <strong>{guardian.adharnumber ?? 'N/A'}</strong>
-                              </div>
-                              <div>
-                                <span>Qualification</span>
-                                <strong>{guardian.qualification ?? 'N/A'}</strong>
-                              </div>
-                            </div>
-                          </article>
-                        ))
-                      )}
-                    </div>
-                  </article>
+                      Overview
+                    </button>
+                    <button
+                      type="button"
+                      className={parentDashboardTab === 'exams' ? 'active' : ''}
+                      onClick={() => setParentDashboardTab('exams')}
+                    >
+                      Exams <span>{activeParentStudentExamRows.length}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={parentDashboardTab === 'fees' ? 'active' : ''}
+                      onClick={() => setParentDashboardTab('fees')}
+                    >
+                      Fees <span>{activeParentStudentFeeRows.length}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={parentDashboardTab === 'attendance' ? 'active' : ''}
+                      onClick={() => setParentDashboardTab('attendance')}
+                    >
+                      Attendance <span>{activeParentStudentAttendanceRows.length}</span>
+                    </button>
+                  </div>
 
-                  <article className="parent-detail-card parent-detail-card-wide">
-                    <header>
-                      <div>
-                        <p className="section-eyebrow">Fees</p>
-                        <h4>Fee ledger</h4>
-                      </div>
-                      <LuCircleDollarSign />
-                    </header>
-                    <div className="parent-fee-summary">
-                      <div>
-                        <span>Total</span>
-                        <strong>{formatInr(activeParentStudentSummary.feeTotal)}</strong>
-                      </div>
-                      <div>
-                        <span>Paid</span>
-                        <strong>{formatInr(activeParentStudentSummary.feePaid)}</strong>
-                      </div>
-                      <div>
-                        <span>Remaining</span>
-                        <strong>{formatInr(activeParentStudentSummary.feeRemaining)}</strong>
-                      </div>
-                      <div>
-                        <span>Records</span>
-                        <strong>{activeParentStudentSummary.feeCount}</strong>
-                      </div>
-                    </div>
+                  {parentDashboardTab === 'overview' ? (
+                    <div className="parent-student-detail-grid">
+                      <article className="parent-detail-card parent-detail-card-wide">
+                        <header>
+                          <div>
+                            <p className="section-eyebrow">Identity</p>
+                            <h4>Student details</h4>
+                          </div>
+                          <LuBookCopy />
+                        </header>
+                        <div className="parent-detail-specs">
+                          <div>
+                            <span>Name</span>
+                            <strong>{selectedDetail?.name ?? selectedStudent.name}</strong>
+                          </div>
+                          <div>
+                            <span>Admission no</span>
+                            <strong>{selectedDetail?.admissionno ?? selectedStudent.admissionno ?? 'N/A'}</strong>
+                          </div>
+                          <div>
+                            <span>Gender</span>
+                            <strong>{selectedDetail?.gender ?? selectedStudent.gender ?? 'N/A'}</strong>
+                          </div>
+                          <div>
+                            <span>DOB</span>
+                            <strong>{formatDisplayDate(selectedDetail?.dob ?? selectedStudent.dob)}</strong>
+                          </div>
+                          <div>
+                            <span>Age</span>
+                            <strong>{formatAgeFromDob(selectedDetail?.dob ?? selectedStudent.dob)}</strong>
+                          </div>
+                          <div>
+                            <span>Aadhaar</span>
+                            <strong>{selectedDetail?.adharnumber ?? 'N/A'}</strong>
+                          </div>
+                          <div>
+                            <span>Blood group</span>
+                            <strong>{selectedDetail?.bloodgroup ?? 'N/A'}</strong>
+                          </div>
+                          <div>
+                            <span>Mother tongue</span>
+                            <strong>{selectedDetail?.mothertongue ?? 'N/A'}</strong>
+                          </div>
+                          <div>
+                            <span>Category</span>
+                            <strong>{selectedDetail?.socialcategory ?? 'N/A'}</strong>
+                          </div>
+                          <div>
+                            <span>Height</span>
+                            <strong>{selectedDetail?.height ? `${selectedDetail.height} cm` : 'N/A'}</strong>
+                          </div>
+                          <div>
+                            <span>Weight</span>
+                            <strong>{selectedDetail?.weight ? `${selectedDetail.weight} kg` : 'N/A'}</strong>
+                          </div>
+                          <div className="parent-detail-span">
+                            <span>Address</span>
+                            <strong>{selectedDetail?.address ?? 'N/A'}</strong>
+                          </div>
+                          <div>
+                            <span>Pincode</span>
+                            <strong>{selectedDetail?.pincode ?? 'N/A'}</strong>
+                          </div>
+                        </div>
+                      </article>
 
-                    <div className="parent-ledger-list">
-                      {activeParentStudentFeeDetails.length === 0 ? (
-                        <p className="parent-empty-copy">No fee records returned for this student.</p>
-                      ) : (
-                        activeParentStudentFeeDetails.map((fee) => {
-                          const feePayments = fee.payments ?? [];
-                          const feePaid = fee.totalPaid ?? feePayments.filter((payment) => payment.status === 'SUCCESS').reduce((sum, payment) => sum + Number(payment.amount ?? 0), 0);
-                          const feeRemaining = fee.remaining ?? Math.max(Number(fee.total ?? 0) - Number(feePaid), 0);
-                          return (
+                      <article className="parent-detail-card parent-detail-card-wide">
+                        <header>
+                          <div>
+                            <p className="section-eyebrow">Academics</p>
+                            <h4>Class and school context</h4>
+                          </div>
+                          <LuGraduationCap />
+                        </header>
+                        <div className="parent-detail-specs">
+                          <div>
+                            <span>Class</span>
+                            <strong>
+                              {selectedClass ? `${selectedClass.name} - ${selectedClass.section}` : `${selectedStudent.className} - ${selectedStudent.section}`}
+                            </strong>
+                          </div>
+                          <div>
+                            <span>Class teacher</span>
+                            <strong>{selectedClass?.teacher?.name ?? selectedStudent.teacherName ?? 'N/A'}</strong>
+                          </div>
+                          <div>
+                            <span>Teacher email</span>
+                            <strong>{selectedClass?.teacher?.user?.email ?? selectedStudent.teacherEmail ?? 'N/A'}</strong>
+                          </div>
+                          <div>
+                            <span>Admission date</span>
+                            <strong>{formatDisplayDate(selectedDetail?.admissiondate)}</strong>
+                          </div>
+                          <div>
+                            <span>Created</span>
+                            <strong>{formatDisplayDate(selectedDetail?.createdAt)}</strong>
+                          </div>
+                          <div>
+                            <span>Updated</span>
+                            <strong>{formatDisplayDate(selectedDetail?.updatedAt)}</strong>
+                          </div>
+                        </div>
+                      </article>
+
+                      <article className="parent-detail-card parent-detail-card-wide">
+                        <header>
+                          <div>
+                            <p className="section-eyebrow">Guardians</p>
+                            <h4>Parent information</h4>
+                          </div>
+                          <LuUsers />
+                        </header>
+                        <div
+                          className={
+                            activeParentStudentGuardianProfiles.length >= 2
+                              ? 'parent-guardian-stack two-up'
+                              : 'parent-guardian-stack'
+                          }
+                        >
+                          {activeParentStudentGuardianProfiles.length === 0 ? (
+                            <p className="parent-empty-copy">No guardian details returned by the backend yet.</p>
+                          ) : (
+                            activeParentStudentGuardianProfiles.map((guardian) => (
+                              <article key={guardian.id} className="parent-guardian-card">
+                                <div className="parent-guardian-head">
+                                  <div>
+                                    <strong>{guardian.name}</strong>
+                                    <p>
+                                      {guardian.relation ?? 'Relation N/A'}
+                                      {guardian.type ? ` · ${guardian.type}` : ''}
+                                    </p>
+                                  </div>
+                                  <span>{guardian.type ?? 'N/A'}</span>
+                                </div>
+                                <div className="parent-detail-specs parent-detail-specs-compact">
+                                  <div>
+                                    <span>Phone 1</span>
+                                    <strong>{guardian.phone1 ?? 'N/A'}</strong>
+                                  </div>
+                                  <div>
+                                    <span>Phone 2</span>
+                                    <strong>{guardian.phone2 ?? 'N/A'}</strong>
+                                  </div>
+                                  <div>
+                                    <span>Email</span>
+                                    <strong>{guardian.user?.email ?? 'N/A'}</strong>
+                                  </div>
+                                  <div>
+                                    <span>Gender</span>
+                                    <strong>{guardian.user?.gender ?? 'N/A'}</strong>
+                                  </div>
+                                  <div>
+                                    <span>Aadhaar</span>
+                                    <strong>{guardian.adharnumber ?? 'N/A'}</strong>
+                                  </div>
+                                  <div>
+                                    <span>Qualification</span>
+                                    <strong>{guardian.qualification ?? 'N/A'}</strong>
+                                  </div>
+                                </div>
+                              </article>
+                            ))
+                          )}
+                        </div>
+                      </article>
+
+                      <article className="parent-detail-card parent-detail-card-wide">
+                        <header>
+                          <div>
+                            <p className="section-eyebrow">Record summary</p>
+                            <h4>Extra context</h4>
+                          </div>
+                          <LuShieldCheck />
+                        </header>
+                        <div className="parent-detail-specs parent-detail-specs-compact">
+                          <div>
+                            <span>Primary guardian</span>
+                            <strong>{selectedStudent.primaryGuardianName ?? 'N/A'}</strong>
+                          </div>
+                          <div>
+                            <span>Guardians linked</span>
+                            <strong>{selectedStudent.guardianCount}</strong>
+                          </div>
+                          <div>
+                            <span>Last updated</span>
+                            <strong>{formatDisplayDate(selectedDetail?.updatedAt)}</strong>
+                          </div>
+                          <div>
+                            <span>Detail loaded</span>
+                            <strong>{selectedDetail ? 'Yes' : 'No'}</strong>
+                          </div>
+                        </div>
+                      </article>
+                    </div>
+                  ) : null}
+
+                  {parentDashboardTab === 'exams' ? (
+                    <section className="parent-tab-panel">
+                      <div className="parent-tab-panel-head">
+                        <div>
+                          <p className="section-eyebrow">Exams</p>
+                          <h4>Exam history</h4>
+                          <p className="parent-tab-panel-copy">
+                            Filter every result by subject, score band, or date without overloading the overview.
+                          </p>
+                        </div>
+                        <div className="parent-tab-panel-summary">
+                          <div>
+                            <span>Exams</span>
+                            <strong>{activeParentStudentExamRows.length}</strong>
+                          </div>
+                          <div>
+                            <span>Average</span>
+                            <strong>{activeParentStudentSummary.averageMarks}%</strong>
+                          </div>
+                          <div>
+                            <span>Best</span>
+                            <strong>{activeParentStudentExamRows.length ? `${Math.max(...activeParentStudentExamRows.map((row) => row.percent))}%` : 'N/A'}</strong>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="parent-filter-bar">
+                        <label className="field-block">
+                          <span className="field-label">Search</span>
+                          <input
+                            type="text"
+                            placeholder="Search exam, subject, class..."
+                            value={parentExamSearch}
+                            onChange={(event) => setParentExamSearch(event.target.value)}
+                          />
+                        </label>
+                        <label className="field-block">
+                          <span className="field-label">Subject</span>
+                          <select value={parentExamSubjectFilter} onChange={(event) => setParentExamSubjectFilter(event.target.value)}>
+                            <option value="ALL">All subjects</option>
+                            {parentExamSubjectOptions.map((subject) => (
+                              <option key={subject} value={subject}>
+                                {subject}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="field-block">
+                          <span className="field-label">Band</span>
+                          <select
+                            value={parentExamBandFilter}
+                            onChange={(event) => setParentExamBandFilter(event.target.value as 'ALL' | 'EXCELLENT' | 'GOOD' | 'NEEDS_ATTENTION')}
+                          >
+                            <option value="ALL">All bands</option>
+                            <option value="EXCELLENT">Excellent</option>
+                            <option value="GOOD">Good</option>
+                            <option value="NEEDS_ATTENTION">Needs attention</option>
+                          </select>
+                        </label>
+                        <label className="field-block">
+                          <span className="field-label">Sort</span>
+                          <select value={parentExamSort} onChange={(event) => setParentExamSort(event.target.value as 'recent' | 'highest' | 'lowest')}>
+                            <option value="recent">Most recent</option>
+                            <option value="highest">Highest score</option>
+                            <option value="lowest">Lowest score</option>
+                          </select>
+                        </label>
+                      </div>
+
+                      <div className="parent-record-grid">
+                        {filteredParentExamRows.length === 0 ? (
+                          <div className="parent-empty-state parent-empty-state-wide">
+                            <LuBookOpen />
+                            <h4>No exams matched the current filters</h4>
+                            <p>Try a different subject or broaden the score band.</p>
+                          </div>
+                        ) : (
+                          filteredParentExamRows.map((row) => (
+                            <article key={row.id} className="parent-record-card">
+                              <div className="parent-record-card-head">
+                                <div>
+                                  <strong>{row.examName}</strong>
+                                  <p>
+                                    {row.subjectName} · {row.className} - {row.section}
+                                  </p>
+                                </div>
+                                <span className={`parent-band band-${row.band.toLowerCase()}`}>{row.band.replace('_', ' ')}</span>
+                              </div>
+                              <div className="parent-progress-track">
+                                <span style={{ width: `${Math.max(row.percent, 6)}%` }} />
+                              </div>
+                              <div className="parent-record-card-footer">
+                                <span>{row.marks} scored</span>
+                                <span>{row.totalMarks} total</span>
+                                <span>{row.percent}%</span>
+                                <span>{formatDisplayDate(row.examDate)}</span>
+                              </div>
+                            </article>
+                          ))
+                        )}
+                      </div>
+                    </section>
+                  ) : null}
+
+                  {parentDashboardTab === 'fees' ? (
+                    <section className="parent-tab-panel">
+                      <div className="parent-tab-panel-head">
+                        <div>
+                          <p className="section-eyebrow">Fees</p>
+                          <h4>Fee ledger</h4>
+                          <p className="parent-tab-panel-copy">
+                            Review payment history, balances, and fee type breakdowns from a dedicated tab.
+                          </p>
+                        </div>
+                        <div className="parent-tab-panel-summary">
+                          <div>
+                            <span>Total</span>
+                            <strong>{formatInr(activeParentStudentSummary.feeTotal)}</strong>
+                          </div>
+                          <div>
+                            <span>Paid</span>
+                            <strong>{formatInr(activeParentStudentSummary.feePaid)}</strong>
+                          </div>
+                          <div>
+                            <span>Remaining</span>
+                            <strong>{formatInr(activeParentStudentSummary.feeRemaining)}</strong>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="parent-filter-bar">
+                        <label className="field-block">
+                          <span className="field-label">Search</span>
+                          <input
+                            type="text"
+                            placeholder="Search fee type, year, status..."
+                            value={parentFeeSearch}
+                            onChange={(event) => setParentFeeSearch(event.target.value)}
+                          />
+                        </label>
+                        <label className="field-block">
+                          <span className="field-label">Type</span>
+                          <select value={parentFeeTypeFilter} onChange={(event) => setParentFeeTypeFilter(event.target.value as any)}>
+                            <option value="ALL">All types</option>
+                            <option value="TUITION">Tuition</option>
+                            <option value="BUS">Bus</option>
+                            <option value="EXAM">Exam</option>
+                            <option value="OTHER">Other</option>
+                          </select>
+                        </label>
+                        <label className="field-block">
+                          <span className="field-label">Status</span>
+                          <select value={parentFeeStatusFilter} onChange={(event) => setParentFeeStatusFilter(event.target.value as any)}>
+                            <option value="ALL">All statuses</option>
+                            <option value="PAID">Paid</option>
+                            <option value="PARTIAL">Partial</option>
+                            <option value="PENDING">Pending</option>
+                          </select>
+                        </label>
+                        <label className="field-block">
+                          <span className="field-label">Academic year</span>
+                          <select value={parentFeeYearFilter} onChange={(event) => setParentFeeYearFilter(event.target.value)}>
+                            <option value="ALL">All years</option>
+                            {parentFeeYearOptions.map((year) => (
+                              <option key={year} value={year}>
+                                {year}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="field-block">
+                          <span className="field-label">Sort</span>
+                          <select value={parentFeeSort} onChange={(event) => setParentFeeSort(event.target.value as any)}>
+                            <option value="recent">Most recent</option>
+                            <option value="remaining">Highest balance</option>
+                            <option value="paid">Highest paid</option>
+                          </select>
+                        </label>
+                      </div>
+
+                      <div className="parent-ledger-list">
+                        {filteredParentFeeRows.length === 0 ? (
+                          <div className="parent-empty-state parent-empty-state-wide">
+                            <LuCircleDollarSign />
+                            <h4>No fee records matched the current filters</h4>
+                            <p>Try another type or status filter to reveal the ledger.</p>
+                          </div>
+                        ) : (
+                          filteredParentFeeRows.map((fee) => (
                             <article key={fee.id} className="parent-ledger-card">
                               <div className="parent-ledger-head">
                                 <div>
                                   <strong>{fee.type}</strong>
                                   <p>{fee.academicYear}</p>
                                 </div>
-                                <span>{formatInr(Number(fee.total ?? 0))}</span>
+                                <span>{formatInr(fee.total)}</span>
                               </div>
                               <div className="parent-ledger-meta">
-                                <span>Paid {formatInr(Number(feePaid))}</span>
-                                <span>Remaining {formatInr(Number(feeRemaining))}</span>
-                                <span>{feePayments.length} payment{feePayments.length === 1 ? '' : 's'}</span>
+                                <span>Paid {formatInr(fee.paid)}</span>
+                                <span>Remaining {formatInr(fee.remaining)}</span>
+                                <span>{fee.paymentCount} payment{fee.paymentCount === 1 ? '' : 's'}</span>
+                                <span className={`parent-band band-${fee.status.toLowerCase()}`}>{fee.status}</span>
                               </div>
                               <div className="parent-ledger-payments">
-                                {feePayments.length === 0 ? (
-                                  <p className="parent-empty-copy">No payments recorded yet.</p>
-                                ) : (
-                                  feePayments.slice(0, 3).map((payment) => (
-                                    <div key={payment.id} className="parent-ledger-payment">
-                                      <strong>{formatInr(Number(payment.amount ?? 0))}</strong>
-                                      <span>{payment.method}</span>
-                                      <span>{payment.status}</span>
-                                    </div>
-                                  ))
-                                )}
+                                <div className="parent-ledger-payment">
+                                  <strong>{formatInr(fee.paid)}</strong>
+                                  <span>Collected</span>
+                                  <span>{fee.latestPaymentMethod ?? 'N/A'}</span>
+                                </div>
+                                <div className="parent-ledger-payment">
+                                  <strong>{formatInr(fee.remaining)}</strong>
+                                  <span>Due</span>
+                                  <span>{fee.latestPaymentStatus ?? 'N/A'}</span>
+                                </div>
                               </div>
                             </article>
-                          );
-                        })
-                      )}
-                    </div>
-                  </article>
+                          ))
+                        )}
+                      </div>
+                    </section>
+                  ) : null}
 
-                  <article className="parent-detail-card parent-detail-card-wide">
-                    <header>
-                      <div>
-                        <p className="section-eyebrow">Results</p>
-                        <h4>Exam snapshot</h4>
-                      </div>
-                      <LuGauge />
-                    </header>
-                    <div className="parent-performance-summary">
-                      <div>
-                        <span>Average</span>
-                        <strong>{activeParentStudentSummary.averageMarks}%</strong>
-                      </div>
-                      <div>
-                        <span>Latest exam</span>
-                        <strong>{activeParentStudentSummary.latestMark?.examName ?? 'N/A'}</strong>
-                      </div>
-                      <div>
-                        <span>Latest score</span>
-                        <strong>
-                          {activeParentStudentSummary.latestMark
-                            ? `${activeParentStudentSummary.latestMark.marks} / ${activeParentStudentSummary.latestMark.exam?.totalMarks ?? 'N/A'}`
-                            : 'N/A'}
-                        </strong>
-                      </div>
-                      <div>
-                        <span>Exams</span>
-                        <strong>{activeParentStudentSummary.markCount}</strong>
-                      </div>
-                    </div>
-                    <div className="parent-marks-list">
-                      {activeParentStudentMarkDetails.length === 0 ? (
-                        <p className="parent-empty-copy">No marks records returned for this student.</p>
-                      ) : (
-                        activeParentStudentMarkDetails
-                          .slice()
-                          .sort((a, b) => {
-                            const aDate = a.exam?.examDate ? new Date(a.exam.examDate).getTime() : 0;
-                            const bDate = b.exam?.examDate ? new Date(b.exam.examDate).getTime() : 0;
-                            return bDate - aDate;
-                          })
-                          .map((mark) => {
-                            const exam = mark.exam ?? null;
-                            const totalMarks = Number(exam?.totalMarks ?? 0);
-                            const percent = totalMarks ? Math.min(Math.round((Number(mark.marks ?? 0) / totalMarks) * 100), 100) : 0;
-                            return (
-                              <article key={mark.id} className="parent-mark-card">
-                                <div className="parent-mark-head">
-                                  <div>
-                                    <strong>{exam?.name ?? `Exam ${mark.examId}`}</strong>
-                                    <p>{exam?.subject?.name ?? 'Subject'}</p>
-                                  </div>
-                                  <span>{percent}%</span>
-                                </div>
-                                <div className="parent-mark-track">
-                                  <span style={{ width: `${Math.max(percent, 6)}%` }} />
-                                </div>
-                                <div className="parent-mark-meta">
-                                  <span>{mark.marks} scored</span>
-                                  <span>{totalMarks || 'N/A'} total</span>
-                                  <span>{formatDisplayDate(exam?.examDate)}</span>
-                                </div>
-                              </article>
-                            );
-                          })
-                      )}
-                    </div>
-                  </article>
-
-                  <article className="parent-detail-card parent-detail-card-wide">
-                    <header>
-                      <div>
-                        <p className="section-eyebrow">Attendance</p>
-                        <h4>Presence overview</h4>
-                      </div>
-                      <LuClock3 />
-                    </header>
-                    <div className="parent-attendance-layout">
-                      <div className="parent-attendance-ring">
-                        <svg viewBox="0 0 220 220" role="img" aria-label="Attendance summary">
-                          <circle cx="110" cy="110" r="82" className="status-donut-base" />
-                          <circle cx="110" cy="110" r="82" className="status-donut-zero-ring" />
-                          <circle cx="110" cy="110" r="54" fill="#fff" />
-                          <text x="110" y="104" textAnchor="middle" className="status-donut-value">
-                            {attendancePercent === null ? 0 : attendancePercent}%
-                          </text>
-                          <text x="110" y="124" textAnchor="middle" className="status-donut-sub">
-                            attendance
-                          </text>
-                        </svg>
-                      </div>
-                      <div className="parent-attendance-copy">
-                        <div className="parent-attendance-grid">
+                  {parentDashboardTab === 'attendance' ? (
+                    <section className="parent-tab-panel">
+                      <div className="parent-tab-panel-head">
+                        <div>
+                          <p className="section-eyebrow">Attendance</p>
+                          <h4>Presence overview</h4>
+                          <p className="parent-tab-panel-copy">
+                            Filter monthly attendance sessions and spot trends without cluttering the overview screen.
+                          </p>
+                        </div>
+                        <div className="parent-tab-panel-summary">
                           <div>
                             <span>Present</span>
-                            <strong>{selectedStudent.attendancePresent}</strong>
+                            <strong>{activeParentStudentAttendanceSummary.present}</strong>
                           </div>
                           <div>
                             <span>Absent</span>
-                            <strong>{selectedStudent.attendanceAbsent}</strong>
+                            <strong>{activeParentStudentAttendanceSummary.absent}</strong>
                           </div>
                           <div>
-                            <span>Total</span>
-                            <strong>{selectedStudent.attendanceTotal}</strong>
-                          </div>
-                          <div>
-                            <span>Class teacher</span>
-                            <strong>{selectedStudent.teacherName ?? 'N/A'}</strong>
+                            <span>Rate</span>
+                            <strong>{activeParentStudentAttendanceSummary.percent}%</strong>
                           </div>
                         </div>
-                        <p>
-                          Attendance is computed from the class attendance sessions the backend already returns. If the school
-                          adds new sessions, this dashboard updates automatically on the next load.
-                        </p>
                       </div>
-                    </div>
-                  </article>
 
-                  <article className="parent-detail-card parent-detail-card-wide">
-                    <header>
-                      <div>
-                        <p className="section-eyebrow">Record summary</p>
-                        <h4>Extra context</h4>
+                      <div className="parent-filter-bar">
+                        <label className="field-block">
+                          <span className="field-label">Search</span>
+                          <input
+                            type="text"
+                            placeholder="Search date, month, teacher..."
+                            value={parentAttendanceSearch}
+                            onChange={(event) => setParentAttendanceSearch(event.target.value)}
+                          />
+                        </label>
+                        <label className="field-block">
+                          <span className="field-label">Status</span>
+                          <select
+                            value={parentAttendanceStatusFilter}
+                            onChange={(event) => setParentAttendanceStatusFilter(event.target.value as 'ALL' | 'PRESENT' | 'ABSENT')}
+                          >
+                            <option value="ALL">All statuses</option>
+                            <option value="PRESENT">Present</option>
+                            <option value="ABSENT">Absent</option>
+                          </select>
+                        </label>
+                        <label className="field-block">
+                          <span className="field-label">Month</span>
+                          <select value={parentAttendanceMonthFilter} onChange={(event) => setParentAttendanceMonthFilter(event.target.value)}>
+                            <option value="ALL">All months</option>
+                            {parentAttendanceMonthOptions.map((month) => (
+                              <option key={month} value={month}>
+                                {month}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="field-block">
+                          <span className="field-label">Sort</span>
+                          <select
+                            value={parentAttendanceSort}
+                            onChange={(event) => setParentAttendanceSort(event.target.value as 'recent' | 'oldest')}
+                          >
+                            <option value="recent">Most recent</option>
+                            <option value="oldest">Oldest first</option>
+                          </select>
+                        </label>
                       </div>
-                      <LuShieldCheck />
-                    </header>
-                    <div className="parent-detail-specs parent-detail-specs-compact">
-                      <div>
-                        <span>Primary guardian</span>
-                        <strong>{selectedStudent.primaryGuardianName ?? 'N/A'}</strong>
+
+                      <div className="parent-attendance-layout parent-attendance-layout-tab">
+                        <div className="parent-attendance-ring">
+                          <svg viewBox="0 0 220 220" role="img" aria-label="Attendance summary">
+                            <circle cx="110" cy="110" r="82" className="status-donut-base" />
+                            <circle cx="110" cy="110" r="82" className="status-donut-zero-ring" />
+                            <circle cx="110" cy="110" r="54" fill="#fff" />
+                            <text x="110" y="104" textAnchor="middle" className="status-donut-value">
+                              {activeParentStudentAttendanceSummary.percent}%
+                            </text>
+                            <text x="110" y="124" textAnchor="middle" className="status-donut-sub">
+                              attendance
+                            </text>
+                          </svg>
+                        </div>
+                        <div className="parent-attendance-copy">
+                          <div className="parent-attendance-grid">
+                            <div>
+                              <span>Present</span>
+                              <strong>{activeParentStudentAttendanceSummary.present}</strong>
+                            </div>
+                            <div>
+                              <span>Absent</span>
+                              <strong>{activeParentStudentAttendanceSummary.absent}</strong>
+                            </div>
+                            <div>
+                              <span>Total</span>
+                              <strong>{activeParentStudentAttendanceSummary.total}</strong>
+                            </div>
+                            <div>
+                              <span>Class teacher</span>
+                              <strong>{selectedStudent.teacherName ?? 'N/A'}</strong>
+                            </div>
+                          </div>
+                          <p>
+                            Attendance sessions are pulled from the class feed. Use the filters to narrow down by month or status.
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <span>Guardians linked</span>
-                        <strong>{selectedStudent.guardianCount}</strong>
+
+                      <div className="parent-record-grid attendance-grid">
+                        {filteredParentAttendanceRows.length === 0 ? (
+                          <div className="parent-empty-state parent-empty-state-wide">
+                            <LuClock3 />
+                            <h4>No attendance records matched the current filters</h4>
+                            <p>Try another month or widen the search.</p>
+                          </div>
+                        ) : (
+                          filteredParentAttendanceRows.map((row) => (
+                            <article key={row.sessionId} className="parent-record-card attendance-card">
+                              <div className="parent-record-card-head">
+                                <div>
+                                  <strong>{formatDisplayDate(row.date)}</strong>
+                                  <p>
+                                    {row.className} - {row.section} · {row.takenBy}
+                                  </p>
+                                </div>
+                                <span className={`parent-band band-${row.status.toLowerCase()}`}>{row.status}</span>
+                              </div>
+                              <div className="parent-record-card-footer">
+                                <span>{row.monthKey}</span>
+                                <span>Session {row.sessionId}</span>
+                              </div>
+                            </article>
+                          ))
+                        )}
                       </div>
-                      <div>
-                        <span>Last updated</span>
-                        <strong>{formatDisplayDate(selectedDetail?.updatedAt)}</strong>
-                      </div>
-                      <div>
-                        <span>Detail loaded</span>
-                        <strong>{selectedDetail ? 'Yes' : 'No'}</strong>
-                      </div>
-                    </div>
-                  </article>
+                    </section>
+                  ) : null}
                 </div>
               </>
             )}
